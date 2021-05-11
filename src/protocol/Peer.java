@@ -1,3 +1,4 @@
+package protocol;
 
 import java.net.InetSocketAddress;
 import java.rmi.RemoteException;
@@ -5,9 +6,10 @@ import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
 import java.rmi.server.UnicastRemoteObject;
 
+import chord.ChordNode;
 import client.ClientInterface;
 
-public class Peer implements ClientInterface {
+public class Peer extends ChordNode implements ClientInterface {
     public static String version;
     public static int id;
 
@@ -28,9 +30,9 @@ public class Peer implements ClientInterface {
     }
 
     public static void printUsage() {
-        System.out.println("Usage: Peer <protocol_version> <peer_id> <service_ap> <port> [chord_addr chord_port].");
+        System.out.println("Usage: protocol.Peer <protocol_version> <peer_id> <service_ap> <port> [chord_addr chord_port].");
         System.out.println("When run without the last two arguments, a new Chord network is created.");
-        System.out.println("Otherwise, the Peer will join the network specified by chord_addr:chord_port.");
+        System.out.println("Otherwise, the protocol.Peer will join the network specified by chord_addr:chord_port.");
     }
 
     public static void main(String[] args) {
@@ -52,7 +54,6 @@ public class Peer implements ClientInterface {
         }
         catch (RemoteException ex) {
             System.err.println("Exception occurred while setting up RMI: " + ex.getMessage());
-            ex.printStackTrace();
         }
 
         // Chord Setup
@@ -69,7 +70,7 @@ public class Peer implements ClientInterface {
                 return;
             }
         }
-        else if (args.length == 4) {
+        else {
             // Creating a new Chord network
         }
 

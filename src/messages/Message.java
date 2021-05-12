@@ -4,12 +4,12 @@ public abstract class Message {
     public static final String headerSeparator = "\r\n\r\n";
 
     public final String protocolVersion;
-    public final int peerId;
+    public final int senderId;
     public byte[] body;
 
-    public Message(String protocolVersion, int peerId, byte[] body) {
+    public Message(String protocolVersion, int senderId, byte[] body) {
         this.protocolVersion = protocolVersion;
-        this.peerId = peerId;
+        this.senderId = senderId;
         this.body = body;
     }
 

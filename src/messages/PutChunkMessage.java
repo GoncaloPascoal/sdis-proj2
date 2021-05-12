@@ -1,19 +1,18 @@
 package messages;
 
 import java.net.InetSocketAddress;
-import java.util.List;
-
-import utils.Utils;
 
 public class PutChunkMessage extends Message {
+    public static final String name = "PUTCHUNK";
+
     public final String fileId;
     public final int chunkNumber;
     public int replicationDegree;
     public InetSocketAddress initiatorAddress;
 
-    public PutChunkMessage(String protocolVersion, int peerId, String fileId, int chunkNumber, int replicationDegree,
+    public PutChunkMessage(String protocolVersion, int senderId, String fileId, int chunkNumber, int replicationDegree,
                            InetSocketAddress initiatorAddress, byte[] body) {
-        super(protocolVersion, peerId, body);
+        super(protocolVersion, senderId, body);
 
         this.fileId = fileId;
         this.chunkNumber = chunkNumber;
@@ -23,21 +22,14 @@ public class PutChunkMessage extends Message {
 
     @Override
     public String buildHeader() {
-        return protocolVersion + " " + peerId + " " + fileId + " " + chunkNumber + " " + replicationDegree + " " +
-                initiatorAddress.getHostName() + " " + initiatorAddress.getPort();
+        String[] components = { protocolVersion, name, String.valueOf(senderId), fileId, String.valueOf(chunkNumber),
+                String.valueOf(replicationDegree), initiatorAddress.getHostName(), String.valueOf(initiatorAddress.getPort()) };
+
+        return String.join(" ", components);
     }
 
-    public static PutChunkMessage parse(byte[] bytes) {
+    public static PutChunkMessage parse(String header, byte[] body) {
         // <Version> PUTCHUNK <SenderId> <FileId> <ChunkNo> <ReplicationDeg> <InitiatorHostname> <InitiatorPort> <CRLF><CRLF><Body>
-        List<byte[]> components = Utils.splitMessage(bytes);
-
-        if (components.size() != 2) {
-            return null;
-        }
-
-        String header = new String(components.get(0));
-        byte[] body = components.get(1);
-
         String[] headerComponents = header.split(" ");
 
         if (headerComponents.length != 8) {
@@ -45,7 +37,7 @@ public class PutChunkMessage extends Message {
         }
 
         String protocolVersion = headerComponents[0];
-        int peerId = Integer.parseInt(headerComponents[2]);
+        int senderId = Integer.parseInt(headerComponents[2]);
         String fileId = headerComponents[3];
         int chunkNumber = Integer.parseInt(headerComponents[4]),
                 replicationDegree = Integer.parseInt(headerComponents[5]);
@@ -55,6 +47,6 @@ public class PutChunkMessage extends Message {
 
         InetSocketAddress initiatorAddress = new InetSocketAddress(initiatorHostname, initiatorPort);
 
-        return new PutChunkMessage(protocolVersion, peerId, fileId, chunkNumber, replicationDegree, initiatorAddress, body);
+        return new PutChunkMessage(protocolVersion, senderId, fileId, chunkNumber, replicationDegree, initiatorAddress, body);
     }
 }

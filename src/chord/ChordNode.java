@@ -34,4 +34,8 @@ public class ChordNode {
 
         return null;
     }
+
+    public ChordNodeInfo getSuccessorInfo() {
+        return fingerTable.get(0);
+    }
 }

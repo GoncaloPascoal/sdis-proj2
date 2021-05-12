@@ -26,6 +26,8 @@ public class Peer extends ChordNode implements ClientInterface {
     public static int id;
     public static InetSocketAddress address;
 
+    public static String keyStorePath, trustStorePath, password;
+
     public static PeerState state;
 
     @Override
@@ -84,13 +86,13 @@ public class Peer extends ChordNode implements ClientInterface {
     }
 
     public static void printUsage() {
-        System.out.println("Usage: Peer <protocol_version> <peer_id> <service_ap> <addr> <port> [chord_addr chord_port].");
+        System.out.println("Usage: Peer <protocol_version> <peer_id> <service_ap> <keystore_path> <truststore_path> <password> <addr> <port> [chord_addr chord_port].");
         System.out.println("When run without the last two arguments, a new Chord network is created.");
         System.out.println("Otherwise, the protocol.Peer will join the network specified by chord_addr:chord_port.");
     }
 
     public static void main(String[] args) {
-        if (args.length != 5 && args.length != 7) {
+        if (args.length != 8 && args.length != 10) {
             printUsage();
             return;
         }
@@ -110,17 +112,24 @@ public class Peer extends ChordNode implements ClientInterface {
             System.err.println("Exception occurred while setting up RMI: " + ex.getMessage());
         }
 
-        // Chord Setup
-        int port = Integer.parseInt(args[4]);
-        InetSocketAddress address = new InetSocketAddress(args[4], port), chordAddress;
+        // Keystore Setup
+        keyStorePath = args[3];
+        trustStorePath = args[4];
+        password = args[5];
 
-        if (args.length == 7) {
+        // Chord Setup
+        address = new InetSocketAddress(args[6], Integer.parseInt(args[7]));
+        if (address.isUnresolved()) {
+            System.err.println("Invalid hostname: '" + args[6] + "'");
+            return;
+        }
+
+        if (args.length == 10) {
             // Joining an existing Chord network
-            int chordPort = Integer.parseInt(args[6]);
-            chordAddress = new InetSocketAddress(args[5], chordPort);
+            InetSocketAddress chordAddress = new InetSocketAddress(args[8], Integer.parseInt(args[9]));
 
             if (chordAddress.isUnresolved()) {
-                System.err.println("Invalid hostname: '" + args[5] + "'");
+                System.err.println("Invalid hostname: '" + args[8] + "'");
                 return;
             }
         }

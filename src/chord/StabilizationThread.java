@@ -13,6 +13,6 @@ public class StabilizationThread extends Thread {
 
     @Override
     public void run() {
-
+        // TODO: stabilize peers (state) and fix finger pointers
     }
 }

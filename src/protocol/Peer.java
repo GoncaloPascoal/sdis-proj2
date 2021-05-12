@@ -15,10 +15,11 @@ import java.rmi.server.UnicastRemoteObject;
 import java.security.NoSuchAlgorithmException;
 
 import chord.ChordNode;
+import chord.ChordNodeInfo;
 import client.ClientInterface;
 import utils.Utils;
 
-public class Peer extends ChordNode implements ClientInterface {
+public class Peer implements ClientInterface {
     public static final int CHUNK_MAX_SIZE = 64000;
     public static final long FILE_MAX_SIZE = (long) CHUNK_MAX_SIZE * 1000000;
 
@@ -28,7 +29,7 @@ public class Peer extends ChordNode implements ClientInterface {
 
     public static String keyStorePath, trustStorePath, password;
 
-    public static PeerState state;
+    public static PeerState state = new PeerState();
 
     @Override
     public void backup(String filePath, int replicationDegree) throws RemoteException {
@@ -124,6 +125,8 @@ public class Peer extends ChordNode implements ClientInterface {
             return;
         }
 
+        state.chordNode = new ChordNode(address);
+
         if (args.length == 10) {
             // Joining an existing Chord network
             InetSocketAddress chordAddress = new InetSocketAddress(args[8], Integer.parseInt(args[9]));
@@ -135,8 +138,12 @@ public class Peer extends ChordNode implements ClientInterface {
         }
         else {
             // Creating a new Chord network
+            state.chordNode.predecessorInfo = state.chordNode.selfInfo;
+            state.chordNode.setSuccessorInfo(state.chordNode.selfInfo);
         }
 
-        System.out.println("Successfully joined the network.");
+        System.out.println("Successfully joined the network with id = " + state.chordNode.selfInfo.id + ".");
+        System.out.println("Your predecessor is " + state.chordNode.predecessorInfo + ".");
+        System.out.println("Your successor is " + state.chordNode.getSuccessorInfo() + ".");
     }
 }

@@ -10,4 +10,9 @@ public class ChordNodeInfo {
         this.id = id;
         this.address = address;
     }
+
+    @Override
+    public String toString() {
+        return "#" + id + " (" + address.getHostName() + ":" + address.getPort() + ")";
+    }
 }

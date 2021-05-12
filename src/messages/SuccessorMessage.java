@@ -27,7 +27,7 @@ public class SuccessorMessage extends Message {
         // <Version> SUCCESSOR <SenderId> <Key> <SuccessorHostname> <SuccessorPort> <CRLF><CRLF><Body>
         String[] headerComponents = header.split(" ");
 
-        if (headerComponents.length != 6) {
+        if (headerComponents.length != 6 || !headerComponents[1].equals(name)) {
             return null;
         }
 

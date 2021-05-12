@@ -32,7 +32,7 @@ public class PutChunkMessage extends Message {
         // <Version> PUTCHUNK <SenderId> <FileId> <ChunkNo> <ReplicationDeg> <InitiatorHostname> <InitiatorPort> <CRLF><CRLF><Body>
         String[] headerComponents = header.split(" ");
 
-        if (headerComponents.length != 8) {
+        if (headerComponents.length != 8 || !headerComponents[1].equals(name)) {
             return null;
         }
 

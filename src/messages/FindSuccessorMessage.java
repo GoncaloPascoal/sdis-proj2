@@ -27,7 +27,7 @@ public class FindSuccessorMessage extends Message {
         // <Version> FIND_SUCCESSOR <SenderId> <Key> <InitiatorHostname> <InitiatorPort> <CRLF><CRLF><Body>
         String[] headerComponents = header.split(" ");
 
-        if (headerComponents.length != 6) {
+        if (headerComponents.length != 6 || !headerComponents[1].equals(name)) {
             return null;
         }
 

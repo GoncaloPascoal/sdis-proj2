@@ -3,10 +3,10 @@ package chord;
 import java.net.InetSocketAddress;
 
 public class ChordNodeInfo {
-    public final int id;
+    public final long id;
     public final InetSocketAddress address;
 
-    public ChordNodeInfo(int id, InetSocketAddress address) {
+    public ChordNodeInfo(long id, InetSocketAddress address) {
         this.id = id;
         this.address = address;
     }

@@ -14,18 +14,16 @@ import java.security.GeneralSecurityException;
 public class ServerThread extends SSLThread {
     private final ServerSocketChannel serverSocketChannel;
 
-    public ServerThread() throws GeneralSecurityException, IOException {
-        super("SSL", "server.keys", "truststore", "123456");
+    public ServerThread(String keyStorePath, String trustStorePath, String password) throws GeneralSecurityException, IOException {
+        super("SSL", keyStorePath, trustStorePath, password);
 
         serverSocketChannel = ServerSocketChannel.open();
         serverSocketChannel.socket().bind(Peer.address);
-
-        System.out.println("Will listen at: " + Peer.address.getHostName() + ":" + Peer.address.getPort());
     }
 
     @Override
     public void run() {
-        System.out.println("Starting server");
+        System.out.println("Starting server, will listen at: " + Peer.address.getHostName() + ":" + Peer.address.getPort());
 
         while (true) {
             SSLEngine engine = context.createSSLEngine();

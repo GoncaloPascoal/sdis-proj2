@@ -12,11 +12,13 @@ import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
 import java.rmi.server.UnicastRemoteObject;
+import java.security.GeneralSecurityException;
 import java.security.NoSuchAlgorithmException;
+import java.util.concurrent.ScheduledThreadPoolExecutor;
 
 import chord.ChordNode;
-import chord.ChordNodeInfo;
 import client.ClientInterface;
+import jsse.ServerThread;
 import utils.Utils;
 
 public class Peer implements ClientInterface {
@@ -28,6 +30,9 @@ public class Peer implements ClientInterface {
     public static InetSocketAddress address;
 
     public static String keyStorePath, trustStorePath, password;
+
+    public static final int MAX_THREADS = 50;
+    public static ScheduledThreadPoolExecutor executor = new ScheduledThreadPoolExecutor(MAX_THREADS);
 
     public static PeerState state = new PeerState();
 
@@ -117,6 +122,19 @@ public class Peer implements ClientInterface {
         keyStorePath = args[3];
         trustStorePath = args[4];
         password = args[5];
+
+        try {
+            ServerThread serverThread = new ServerThread(keyStorePath, trustStorePath, password);
+            executor.execute(serverThread);
+        }
+        catch (GeneralSecurityException ex) {
+            System.out.println("Security exception when creating server thread: " + ex.getMessage());
+            return;
+        }
+        catch (IOException ex) {
+            System.out.println("IO exception when creating server thread: " + ex.getMessage());
+            return;
+        }
 
         // Chord Setup
         address = new InetSocketAddress(args[6], Integer.parseInt(args[7]));

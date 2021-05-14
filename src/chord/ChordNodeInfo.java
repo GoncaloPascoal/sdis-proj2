@@ -13,6 +13,6 @@ public class ChordNodeInfo {
 
     @Override
     public String toString() {
-        return "#" + id + " (" + address.getHostName() + ":" + address.getPort() + ")";
+        return "#" + id + " (" + address.getAddress().getHostAddress() + ":" + address.getPort() + ")";
     }
 }

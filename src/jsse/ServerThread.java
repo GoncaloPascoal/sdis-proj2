@@ -14,8 +14,8 @@ import java.security.GeneralSecurityException;
 public class ServerThread extends SSLThread {
     private final ServerSocketChannel serverSocketChannel;
 
-    public ServerThread(String keyStorePath, String trustStorePath, String password) throws GeneralSecurityException, IOException {
-        super("SSL", keyStorePath, trustStorePath, password);
+    public ServerThread() throws GeneralSecurityException, IOException {
+        super("SSL", Peer.keyStorePath, Peer.trustStorePath, Peer.password);
 
         serverSocketChannel = ServerSocketChannel.open();
         serverSocketChannel.socket().bind(Peer.address);
@@ -23,21 +23,22 @@ public class ServerThread extends SSLThread {
 
     @Override
     public void run() {
-        System.out.println("Starting server, will listen at: " + Peer.address.getHostName() + ":" + Peer.address.getPort());
+        System.out.println("Starting server, will listen at: " + Peer.address.getAddress().getHostAddress() + ":" + Peer.address.getPort());
+        SSLEngine engine = context.createSSLEngine();
+        engine.setUseClientMode(false);
 
         while (true) {
-            SSLEngine engine = context.createSSLEngine();
-            engine.setUseClientMode(false);
-
             try {
                 SocketChannel socketChannel = serverSocketChannel.accept();
+                System.out.println("Accepted new connection.");
+
                 doHandshake(socketChannel, engine);
                 byte[] messageBytes = receiveMessage(socketChannel, engine);
 
                 System.out.println(new String(messageBytes));
             }
             catch (IOException ex) {
-                ex.printStackTrace();
+                System.out.println(ex.getMessage());
             }
         }
     }

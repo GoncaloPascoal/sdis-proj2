@@ -5,10 +5,10 @@ import java.net.InetSocketAddress;
 public class SuccessorMessage extends Message {
     public static final String name = "SUCCESSOR";
 
-    public final int key;
+    public final long key;
     public final InetSocketAddress successorAddress;
 
-    public SuccessorMessage(String protocolVersion, int peerId, int key, InetSocketAddress successorAddress) {
+    public SuccessorMessage(String protocolVersion, int peerId, long key, InetSocketAddress successorAddress) {
         super(protocolVersion, peerId);
 
         this.key = key;
@@ -18,7 +18,7 @@ public class SuccessorMessage extends Message {
     @Override
     public String buildHeader() {
         String[] components = { protocolVersion, name, String.valueOf(senderId), String.valueOf(key),
-                successorAddress.getHostName(), String.valueOf(successorAddress.getPort()) };
+                successorAddress.getAddress().getHostAddress(), String.valueOf(successorAddress.getPort()) };
 
         return String.join(" ", components);
     }
@@ -32,8 +32,8 @@ public class SuccessorMessage extends Message {
         }
 
         String protocolVersion = headerComponents[0];
-        int senderId = Integer.parseInt(headerComponents[2]),
-                key = Integer.parseInt(headerComponents[3]);
+        int senderId = Integer.parseInt(headerComponents[2]);
+        long key = Long.parseLong(headerComponents[3]);
 
         String successorHostname = headerComponents[4];
         int successorPort = Integer.parseInt(headerComponents[5]);

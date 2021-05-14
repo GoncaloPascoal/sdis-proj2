@@ -5,10 +5,10 @@ import java.net.InetSocketAddress;
 public class FindSuccessorMessage extends Message {
     public static final String name = "FIND_SUCCESSOR";
 
-    public final int key;
+    public final long key;
     public final InetSocketAddress initiatorAddress;
 
-    public FindSuccessorMessage(String protocolVersion, int peerId, int key, InetSocketAddress initiatorAddress) {
+    public FindSuccessorMessage(String protocolVersion, int peerId, long key, InetSocketAddress initiatorAddress) {
         super(protocolVersion, peerId);
 
         this.key = key;
@@ -18,7 +18,7 @@ public class FindSuccessorMessage extends Message {
     @Override
     public String buildHeader() {
         String[] components = { protocolVersion, name, String.valueOf(senderId), String.valueOf(key),
-                initiatorAddress.getHostName(), String.valueOf(initiatorAddress.getPort()) };
+                initiatorAddress.getAddress().getHostAddress(), String.valueOf(initiatorAddress.getPort()) };
 
         return String.join(" ", components);
     }
@@ -32,8 +32,8 @@ public class FindSuccessorMessage extends Message {
         }
 
         String protocolVersion = headerComponents[0];
-        int senderId = Integer.parseInt(headerComponents[2]),
-                key = Integer.parseInt(headerComponents[3]);
+        int senderId = Integer.parseInt(headerComponents[2]);
+        long key = Long.parseLong(headerComponents[3]);
 
         String initiatorHostname = headerComponents[4];
         int initiatorPort = Integer.parseInt(headerComponents[5]);

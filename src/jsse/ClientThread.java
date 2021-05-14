@@ -1,10 +1,10 @@
 package jsse;
 
 import messages.Message;
+import protocol.Peer;
 
 import javax.net.ssl.SSLEngine;
 import javax.net.ssl.SSLEngineResult;
-import javax.net.ssl.SSLException;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
@@ -17,7 +17,7 @@ public class ClientThread extends SSLThread {
     private final Message message;
 
     public ClientThread(InetSocketAddress destinationAddress, Message message) throws GeneralSecurityException, IOException {
-        super("SSL", "client.keys", "truststore", "123456");
+        super("SSL", Peer.keyStorePath, Peer.trustStorePath, Peer.password);
 
         this.destinationAddress = destinationAddress;
         this.message = message;
@@ -25,7 +25,7 @@ public class ClientThread extends SSLThread {
 
     @Override
     public void run() {
-        SSLEngine engine = context.createSSLEngine(destinationAddress.getHostName(), destinationAddress.getPort());
+        SSLEngine engine = context.createSSLEngine(destinationAddress.getAddress().getHostAddress(), destinationAddress.getPort());
         engine.setUseClientMode(true);
 
         try {
@@ -39,7 +39,7 @@ public class ClientThread extends SSLThread {
             sendMessage(socketChannel, engine);
         }
         catch (IOException ex) {
-            ex.printStackTrace();
+            System.out.println(ex.getMessage());
         }
     }
 

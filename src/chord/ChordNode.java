@@ -1,5 +1,9 @@
 package chord;
 
+import jsse.ClientThread;
+import messages.FindSuccessorMessage;
+import protocol.Peer;
+
 import java.net.InetSocketAddress;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -53,10 +57,29 @@ public class ChordNode {
         return key;
     }
 
-    public void startFingerTable() {
+    public void initializeFingerTable() {
         // Called when the node is creating a new Chord network
         for (int i = 0; i < fingerTable.length(); ++i) {
             fingerTable.set(i, selfInfo);
+        }
+    }
+
+    public void initializeFingerTable(InetSocketAddress contact) {
+        long maxNodes = (long) Math.pow(2, keyBits);
+
+        // Called when the node is joining a new Chord network
+        for (int i = 0; i < fingerTable.length(); ++i) {
+            long startKey = selfInfo.id + (long) Math.pow(2, i) % maxNodes;
+
+            FindSuccessorMessage message = new FindSuccessorMessage(Peer.version, Peer.id, startKey, Peer.address);
+
+            try {
+                ClientThread clientThread = new ClientThread(contact, message);
+                Peer.executor.execute(clientThread);
+            }
+            catch (Exception ex) {
+                System.out.println("Exception when sending FIND_SUCCESSOR message: " + ex.getMessage());
+            }
         }
     }
 

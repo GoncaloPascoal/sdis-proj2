@@ -123,8 +123,16 @@ public class Peer implements ClientInterface {
         trustStorePath = args[4];
         password = args[5];
 
+        // Chord Setup
+        address = new InetSocketAddress(args[6], Integer.parseInt(args[7]));
+        if (address.isUnresolved()) {
+            System.err.println("Invalid hostname: '" + args[6] + "'");
+            return;
+        }
+
+        // Start server thread that will listen to messages sent to the specified address and port
         try {
-            ServerThread serverThread = new ServerThread(keyStorePath, trustStorePath, password);
+            ServerThread serverThread = new ServerThread();
             executor.execute(serverThread);
         }
         catch (GeneralSecurityException ex) {
@@ -136,32 +144,28 @@ public class Peer implements ClientInterface {
             return;
         }
 
-        // Chord Setup
-        address = new InetSocketAddress(args[6], Integer.parseInt(args[7]));
-        if (address.isUnresolved()) {
-            System.err.println("Invalid hostname: '" + args[6] + "'");
-            return;
-        }
-
         state.chordNode = new ChordNode(address);
 
         if (args.length == 10) {
             // Joining an existing Chord network
-            InetSocketAddress chordAddress = new InetSocketAddress(args[8], Integer.parseInt(args[9]));
+            InetSocketAddress contactAddress = new InetSocketAddress(args[8], Integer.parseInt(args[9]));
 
-            if (chordAddress.isUnresolved()) {
+            if (contactAddress.isUnresolved()) {
                 System.err.println("Invalid hostname: '" + args[8] + "'");
                 return;
             }
+
+            System.out.println("Joining existing network, will contact peer at: " + contactAddress.getAddress().getHostAddress() + ":" + contactAddress.getPort());
+            state.chordNode.initializeFingerTable(contactAddress);
         }
         else {
             // Creating a new Chord network
             state.chordNode.predecessorInfo = state.chordNode.selfInfo;
-            state.chordNode.startFingerTable();
-        }
+            state.chordNode.initializeFingerTable();
 
-        System.out.println("Successfully joined the network with id = " + state.chordNode.selfInfo.id + ".");
-        System.out.println("Your predecessor is " + state.chordNode.predecessorInfo + ".");
-        System.out.println("Your successor is " + state.chordNode.getSuccessorInfo() + ".");
+            System.out.println("Successfully joined the network with id = " + state.chordNode.selfInfo.id + ".");
+            System.out.println("Your predecessor is " + state.chordNode.predecessorInfo + ".");
+            System.out.println("Your successor is " + state.chordNode.getSuccessorInfo() + ".");
+        }
     }
 }

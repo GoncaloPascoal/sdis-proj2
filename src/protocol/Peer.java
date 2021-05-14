@@ -157,7 +157,7 @@ public class Peer implements ClientInterface {
         else {
             // Creating a new Chord network
             state.chordNode.predecessorInfo = state.chordNode.selfInfo;
-            state.chordNode.setSuccessorInfo(state.chordNode.selfInfo);
+            state.chordNode.startFingerTable();
         }
 
         System.out.println("Successfully joined the network with id = " + state.chordNode.selfInfo.id + ".");

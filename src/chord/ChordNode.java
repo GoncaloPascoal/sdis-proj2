@@ -15,16 +15,37 @@ public class ChordNode {
 
     public ChordNode(InetSocketAddress address) {
         try {
-            int maxNodes = (int) Math.pow(2, keyBits);
-
             String input = address.getHostName() + ":" + address.getPort();
             MessageDigest digest = MessageDigest.getInstance("SHA1");
-            String hashed = new String(digest.digest(input.getBytes()));
+            byte[] sha1Bytes = digest.digest(input.getBytes());
 
-            selfInfo = new ChordNodeInfo(Math.abs(hashed.hashCode()) % maxNodes, address);
+            int key = 0;
+            // The length of the key in bytes, rounded up (for example, a 20-bit key would need 3 bytes)
+            int keyNumBytes = (int) Math.ceil((double) keyBits / 8);
+
+            // Obtain the m least significant bits from the 160-bit SHA-1 hash
+            // This is equivalent to obtaining the 160-bit hash modulo 2^m
+            for (int i = 0; i < keyNumBytes; ++i) {
+                byte b = sha1Bytes[sha1Bytes.length - 1 - i];
+                key |= Byte.toUnsignedInt(b) << (8 * i);
+            }
+
+            // This bitmask is needed whenever m is not a multiple of 8, 
+            // since we need to guarantee that the generated keys are always smaller than 2^m
+            int mask = (int) Math.pow(2, keyBits) - 1;
+            key &= mask;
+
+            selfInfo = new ChordNodeInfo(key, address);
         }
         catch (NoSuchAlgorithmException ex) {
             System.out.println("Algorithm does not exist: " + ex.getMessage());
+        }
+    }
+
+    public void startFingerTable() {
+        // Called when the node is creating a new Chord network
+        for (int i = 0; i < fingerTable.length(); ++i) {
+            fingerTable.set(i, selfInfo);
         }
     }
 

@@ -64,12 +64,23 @@ public class SSLThread extends Thread {
 
                     status = result.getHandshakeStatus();
 
-                    System.out.println("Unwrap, result: " + result.getStatus() + "\n - Bytes consumed: " + result.bytesConsumed());
+                    //System.out.println("Unwrap, result: " + result.getStatus() + "\n - Bytes consumed: " + result.bytesConsumed());
 
                     switch (result.getStatus()) {
                         case OK:
+                            break;
                         case CLOSED:
+                            if (engine.isOutboundDone()) {
+                                return;
+                            }
+                            else {
+                                engine.closeOutbound();
+                                status = engine.getHandshakeStatus();
+                            }
+                            break;
                         case BUFFER_OVERFLOW:
+                            peerAppData = increaseBufferCapacity(peerAppData, engine.getSession().getApplicationBufferSize());
+                            break;
                         case BUFFER_UNDERFLOW: {
                             // Not enough data to process
                             int newSize = engine.getSession().getPacketBufferSize();
@@ -89,7 +100,7 @@ public class SSLThread extends Thread {
                     result = engine.wrap(appData, netData);
                     status = result.getHandshakeStatus();
 
-                    System.out.println("Wrap, result: " + result.getStatus() + "\n - Bytes produced: " + result.bytesProduced());
+                    //System.out.println("Wrap, result: " + result.getStatus() + "\n - Bytes produced: " + result.bytesProduced());
 
                     switch (result.getStatus()) {
                         case OK:
@@ -100,9 +111,15 @@ public class SSLThread extends Thread {
                             }
                             break;
                         case CLOSED:
+                            netData.flip();
+                            while (netData.hasRemaining()) {
+                                channel.write(netData);
+                            }
+                            peerNetData.clear();
+                            break;
                         case BUFFER_OVERFLOW:
                             // Buffer is not large enough, enlarge the network buffer
-                            netData = getLargerBuffer(netData, engine.getSession().getApplicationBufferSize());
+                            netData = increaseBufferCapacity(netData, engine.getSession().getApplicationBufferSize());
                             break;
                         case BUFFER_UNDERFLOW:
                             break;
@@ -126,7 +143,45 @@ public class SSLThread extends Thread {
         System.out.println("Handshake complete");
     }
 
-    private ByteBuffer getLargerBuffer(ByteBuffer buffer, int newSize) {
+    protected void closeConnection(SocketChannel channel, SSLEngine engine) throws IOException {
+        engine.closeOutbound();
+        System.out.println("Closing connection...");
+
+        int bufferSize = engine.getSession().getPacketBufferSize();
+
+        ByteBuffer empty = ByteBuffer.allocate(bufferSize),
+                netData = ByteBuffer.allocate(bufferSize);
+
+        while (!engine.isOutboundDone()) {
+            SSLEngineResult result = engine.wrap(empty, netData);
+
+            switch (result.getStatus()) {
+                case OK:
+                case BUFFER_UNDERFLOW: // Should never happen since we are calling wrap
+                    break;
+                case BUFFER_OVERFLOW:
+                    if (engine.getSession().getPacketBufferSize() > netData.capacity()) {
+                        netData = ByteBuffer.allocate(engine.getSession().getPacketBufferSize());
+                    }
+                    else {
+                        netData.compact();
+                    }
+                    break;
+                case CLOSED:
+                    System.out.println("CLOSED");
+                    netData.flip();
+                    while (netData.hasRemaining()) {
+                        channel.write(netData);
+                    }
+                    break;
+            }
+
+        }
+
+        channel.close();
+    }
+
+    protected ByteBuffer increaseBufferCapacity(ByteBuffer buffer, int newSize) {
         if (newSize > buffer.capacity()) {
             buffer = ByteBuffer.allocate(newSize);
         }

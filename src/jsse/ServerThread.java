@@ -1,5 +1,6 @@
 package jsse;
 
+import messages.Message;
 import protocol.Peer;
 
 import javax.net.ssl.SSLEngine;
@@ -15,7 +16,7 @@ public class ServerThread extends SSLThread {
     private final ServerSocketChannel serverSocketChannel;
 
     public ServerThread() throws GeneralSecurityException, IOException {
-        super("SSL", Peer.keyStorePath, Peer.trustStorePath, Peer.password);
+        super("TLS", Peer.keyStorePath, Peer.trustStorePath, Peer.password);
 
         serverSocketChannel = ServerSocketChannel.open();
         serverSocketChannel.socket().bind(Peer.address);
@@ -24,28 +25,30 @@ public class ServerThread extends SSLThread {
     @Override
     public void run() {
         System.out.println("Starting server, will listen at: " + Peer.address.getAddress().getHostAddress() + ":" + Peer.address.getPort());
-        SSLEngine engine = context.createSSLEngine();
-        engine.setUseClientMode(false);
 
         while (true) {
             try {
+                SSLEngine engine = context.createSSLEngine();
+                engine.setUseClientMode(false);
+
                 SocketChannel socketChannel = serverSocketChannel.accept();
                 System.out.println("Accepted new connection.");
 
                 doHandshake(socketChannel, engine);
                 byte[] messageBytes = receiveMessage(socketChannel, engine);
 
-                System.out.println(new String(messageBytes));
+                System.out.println("Received message with length " + messageBytes.length + " bytes.");
+                closeConnection(socketChannel, engine);
             }
             catch (IOException ex) {
-                System.out.println(ex.getMessage());
+                System.out.println("Exception in JSSE Server: " + ex.getMessage());
             }
         }
     }
 
     private byte[] receiveMessage(SocketChannel channel, SSLEngine engine) throws IOException {
-        ByteBuffer peerAppData = ByteBuffer.allocate(65000),
-                peerNetData = ByteBuffer.allocate(engine.getSession().getPacketBufferSize());
+        ByteBuffer peerAppData = ByteBuffer.allocate(Message.MAX_SIZE),
+                peerNetData = ByteBuffer.allocate(Message.MAX_SIZE);
         
         int bytesRead;
         if ((bytesRead = channel.read(peerNetData)) > 0) {
@@ -57,14 +60,20 @@ public class ServerThread extends SSLThread {
     
                 switch (result.getStatus()) {
                     case OK:
+                        peerAppData.flip();
                         break;
-                    default:
+                    case BUFFER_OVERFLOW:
+                        peerNetData = increaseBufferCapacity(peerNetData, engine.getSession().getPacketBufferSize());
+                        break;
+                    case BUFFER_UNDERFLOW:
+                        break;
+                    case CLOSED:
+                        System.out.println("Closing connection...");
+                        closeConnection(channel, engine);
                         break;
                 }
             }
         }
-
-        System.out.println(bytesRead);
 
         byte[] messageBytes = new byte[bytesRead];
         System.arraycopy(peerAppData.array(), 0, messageBytes, 0, bytesRead);

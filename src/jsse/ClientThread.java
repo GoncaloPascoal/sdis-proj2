@@ -17,7 +17,7 @@ public class ClientThread extends SSLThread {
     private final Message message;
 
     public ClientThread(InetSocketAddress destinationAddress, Message message) throws GeneralSecurityException, IOException {
-        super("SSL", Peer.keyStorePath, Peer.trustStorePath, Peer.password);
+        super("TLS", Peer.keyStorePath, Peer.trustStorePath, Peer.password);
 
         this.destinationAddress = destinationAddress;
         this.message = message;
@@ -37,9 +37,10 @@ public class ClientThread extends SSLThread {
 
             doHandshake(socketChannel, engine);
             sendMessage(socketChannel, engine);
+            //closeConnection(socketChannel, engine);
         }
         catch (IOException ex) {
-            System.out.println(ex.getMessage());
+            System.out.println("Exception in JSSE Client: " + ex.getMessage());
         }
     }
 
@@ -47,7 +48,7 @@ public class ClientThread extends SSLThread {
         byte[] messageBytes = message.build();
 
         ByteBuffer appData = ByteBuffer.wrap(messageBytes),
-                netData = ByteBuffer.allocate(engine.getSession().getPacketBufferSize());
+                netData = ByteBuffer.allocate(Math.max(appData.capacity(), engine.getSession().getPacketBufferSize()));
 
         while (appData.hasRemaining()) {
             netData.clear();
@@ -58,15 +59,19 @@ public class ClientThread extends SSLThread {
             switch (result.getStatus()) {
                 case OK:
                     netData.flip();
-
                     while (netData.hasRemaining()) {
                         channel.write(netData);
                     }
                     System.out.println("Message sent");
                     break;
-                case CLOSED:
                 case BUFFER_OVERFLOW:
+                    netData = increaseBufferCapacity(netData, engine.getSession().getPacketBufferSize());
+                    break;
                 case BUFFER_UNDERFLOW:
+                    break;
+                case CLOSED:
+                    closeConnection(channel, engine);
+                    System.out.println("Closing connection...");
                     break;
             }
         }

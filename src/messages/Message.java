@@ -1,7 +1,10 @@
 package messages;
 
+import protocol.Peer;
+
 public abstract class Message {
     public static final String headerSeparator = "\r\n\r\n";
+    public static final int MAX_SIZE = Peer.CHUNK_MAX_SIZE + 1000;
 
     public final String protocolVersion;
     public final int senderId;

@@ -4,18 +4,26 @@ import jsse.ClientThread;
 import messages.FindSuccessorMessage;
 import protocol.Peer;
 
+import java.io.IOException;
 import java.net.InetSocketAddress;
+import java.security.GeneralSecurityException;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.util.Queue;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicReferenceArray;
 
 public class ChordNode {
     // With an m-bit key, there can be 2^m nodes, and each has m entries in its finger table
     public static final int keyBits = 16;
+    public static final long maxNodes = (long) Math.pow(2, keyBits);
 
     public ChordNodeInfo selfInfo, predecessorInfo;
     // AtomicReferenceArray is used to ensure thread safety
     public AtomicReferenceArray<ChordNodeInfo> fingerTable = new AtomicReferenceArray<>(keyBits);
+
+    public final ConcurrentHashMap<Long, Queue<Runnable>> tasksMap = new ConcurrentHashMap<>();
 
     public ChordNode(InetSocketAddress address) {
         try {
@@ -65,47 +73,47 @@ public class ChordNode {
     }
 
     public void initializeFingerTable(InetSocketAddress contact) {
-        long maxNodes = (long) Math.pow(2, keyBits);
-
         // Called when the node is joining a new Chord network
-        for (int i = 0; i < fingerTable.length(); ++i) {
-            long startKey = selfInfo.id + (long) Math.pow(2, i) % maxNodes;
+        long successorStart = getStartKey(0);
 
-            FindSuccessorMessage message = new FindSuccessorMessage(Peer.version, Peer.id, startKey, Peer.address);
+        tasksMap.putIfAbsent(successorStart, new ConcurrentLinkedQueue<>());
+        tasksMap.get(successorStart).add(() -> {
+            System.out.println("Your successor is " + getSuccessorInfo());
+        });
 
-            try {
-                ClientThread clientThread = new ClientThread(contact, message);
-                Peer.executor.execute(clientThread);
-            }
-            catch (Exception ex) {
-                System.out.println("Exception when sending FIND_SUCCESSOR message: " + ex.getMessage());
-            }
+        FindSuccessorMessage message = new FindSuccessorMessage(Peer.version, Peer.id, successorStart, Peer.address);
+
+        try {
+            ClientThread thread = new ClientThread(contact, message);
+            thread.start();
+        }
+        catch (IOException | GeneralSecurityException ex) {
+            System.out.println("Exception when sending FIND_SUCCESSOR message: " + ex.getMessage());
         }
     }
 
     /**
-     * Returns information from the node in the finger table that corresponds to the specified key.
+     * Returns the start key for the i-th finger (considering that indexing starts at 0).
      */
-    public ChordNodeInfo getFinger(long key) {
-        long maxNodes = (long) Math.pow(2, keyBits);
+    public long getStartKey(int i) {
+        return (selfInfo.id + (long) Math.pow(2, i)) % maxNodes;
+    }
 
-        for (int i = 0; i < keyBits; ++i) {
-            long start = (selfInfo.id + (long) Math.pow(2, i)) % maxNodes;
-            long end = (start + (long) Math.pow(2, i) - 1) % maxNodes;
+    /**
+     * Returns information from the node in the finger table that most closely precedes the specified key.
+     */
+    public ChordNodeInfo getClosestPrecedingNode(long key) {
+        for (int i = keyBits - 1; i >= 0; --i) {
+            ChordNodeInfo finger = fingerTable.get(i);
+            long fingerId = finger.id;
 
-            if (start <= end) {
-                if (key >= start && key <= end) {
-                    return fingerTable.get(i);
-                }
-            }
-            else {
-                if (key >= start || key <= end) {
-                    return fingerTable.get(i);
-                }
+            if (fingerId > selfInfo.id && fingerId < key
+                    || (selfInfo.id > key && (fingerId > selfInfo.id || fingerId < key))) {
+                return finger;
             }
         }
 
-        return null;
+        return selfInfo;
     }
 
     public ChordNodeInfo getSuccessorInfo() {

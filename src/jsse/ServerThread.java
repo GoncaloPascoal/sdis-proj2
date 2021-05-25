@@ -1,6 +1,7 @@
 package jsse;
 
 import messages.Message;
+import protocol.HandleReceivedMessageThread;
 import protocol.Peer;
 
 import javax.net.ssl.SSLEngine;
@@ -39,6 +40,9 @@ public class ServerThread extends SSLThread {
 
                 System.out.println("Received message with length " + messageBytes.length + " bytes.");
                 closeConnection(socketChannel, engine);
+
+                HandleReceivedMessageThread thread = new HandleReceivedMessageThread(messageBytes);
+                Peer.executor.execute(thread);
             }
             catch (IOException ex) {
                 System.out.println("Exception in JSSE Server: " + ex.getMessage());

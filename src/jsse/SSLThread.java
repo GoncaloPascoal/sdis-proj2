@@ -31,7 +31,7 @@ public class SSLThread extends Thread {
         SSLEngineResult.HandshakeStatus status = engine.getHandshakeStatus();
         SSLEngineResult result;
 
-        System.out.println("Started handshake, status: " + status);
+        //System.out.println("Started handshake, status: " + status);
 
         while (status != SSLEngineResult.HandshakeStatus.FINISHED &&
             status != SSLEngineResult.HandshakeStatus.NOT_HANDSHAKING) {
@@ -139,7 +139,6 @@ public class SSLThread extends Thread {
             }
         }
 
-        System.out.println("Status: " + status);
         System.out.println("Handshake complete");
     }
 
@@ -168,7 +167,6 @@ public class SSLThread extends Thread {
                     }
                     break;
                 case CLOSED:
-                    System.out.println("CLOSED");
                     netData.flip();
                     while (netData.hasRemaining()) {
                         channel.write(netData);

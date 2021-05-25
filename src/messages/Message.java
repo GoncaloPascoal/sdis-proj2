@@ -7,7 +7,7 @@ public abstract class Message {
     public static final int MAX_SIZE = Peer.CHUNK_MAX_SIZE + 1000;
 
     public final String protocolVersion;
-    public final int senderId;
+    public int senderId;
     public byte[] body;
 
     public Message(String protocolVersion, int senderId, byte[] body) {

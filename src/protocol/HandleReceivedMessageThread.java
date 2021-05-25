@@ -3,8 +3,7 @@ package protocol;
 import chord.ChordNode;
 import chord.ChordNodeInfo;
 import jsse.ClientThread;
-import messages.FindSuccessorMessage;
-import messages.SuccessorMessage;
+import messages.*;
 import utils.Utils;
 
 import java.io.IOException;
@@ -29,18 +28,25 @@ public class HandleReceivedMessageThread extends Thread {
 
             String[] headerComponents = header.split(" ");
             if (headerComponents.length >= 2) {
+                System.out.println("Received " + headerComponents[1] + " message\n");
                 switch (headerComponents[1]) {
                     case "FIND_SUCCESSOR": {
-                        System.out.println("Received FIND_SUCCESSOR message\n");
                         FindSuccessorMessage message = FindSuccessorMessage.parse(header, body);
                         if (message != null) handleFindSuccessorMessage(message);
                         break;
                     }
                     case "SUCCESSOR": {
-                        System.out.println("Received SUCCESSOR message\n");
                         SuccessorMessage message = SuccessorMessage.parse(header, body);
                         if (message != null) handleSuccessorMessage(message);
                         break;
+                    }
+                    case "GET_PREDECESSOR": {
+                        GetPredecessorMessage message = GetPredecessorMessage.parse(header, body);
+                        if (message != null) handleGetPredecessorMessage(message);
+                    }
+                    case "NOTIFY": {
+                        NotifyMessage message = NotifyMessage.parse(header, body);
+                        if (message != null) handleNotifyMessage(message);
                     }
                     default:
                         break;
@@ -101,6 +107,20 @@ public class HandleReceivedMessageThread extends Thread {
                 Runnable task = taskQueue.remove();
                 Peer.executor.execute(task);
             }
+        }
+    }
+
+    private void handleGetPredecessorMessage(GetPredecessorMessage message) {
+        ChordNode chordNode = Peer.state.chordNode;
+    }
+
+    private void handleNotifyMessage(NotifyMessage message) {
+        ChordNode chordNode = Peer.state.chordNode;
+
+        if (chordNode.predecessorInfo == null
+                || ChordNode.isKeyBetween(message.nodeInfo.id, chordNode.predecessorInfo.id, chordNode.selfInfo.id)) {
+            chordNode.predecessorInfo = message.nodeInfo;
+            System.out.println("Your predecessor is " + chordNode.predecessorInfo);
         }
     }
 }

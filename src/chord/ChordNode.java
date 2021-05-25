@@ -12,6 +12,7 @@ import java.security.NoSuchAlgorithmException;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReferenceArray;
 
 public class ChordNode {
@@ -19,7 +20,7 @@ public class ChordNode {
     public static final int keyBits = 16;
     public static final long maxNodes = (long) Math.pow(2, keyBits);
 
-    public ChordNodeInfo selfInfo, predecessorInfo;
+    public ChordNodeInfo selfInfo, predecessorInfo = null;
     // AtomicReferenceArray is used to ensure thread safety
     public AtomicReferenceArray<ChordNodeInfo> fingerTable = new AtomicReferenceArray<>(keyBits);
 
@@ -78,6 +79,13 @@ public class ChordNode {
 
         tasksMap.putIfAbsent(successorStart, new ConcurrentLinkedQueue<>());
         tasksMap.get(successorStart).add(() -> {
+            // Schedule FixFingersThread to execute periodically
+            FixFingersThread fixFingersThread = new FixFingersThread();
+            //Peer.executor.scheduleAtFixedRate(fixFingersThread, 0, 1, TimeUnit.SECONDS);
+
+            // Schedule StabilizationThread to execute periodically
+            StabilizationThread stabilizationThread = new StabilizationThread();
+            Peer.executor.scheduleAtFixedRate(stabilizationThread, 0, 5, TimeUnit.SECONDS);
             System.out.println("Your successor is " + getSuccessorInfo());
         });
 
@@ -114,6 +122,19 @@ public class ChordNode {
         }
 
         return selfInfo;
+    }
+
+    public static boolean isKeyBetween(long key, long start, long end, boolean inclusiveStart, boolean inclusiveEnd) {
+        if (start <= end) {
+            return (key > start && key < end) || (inclusiveStart && key == start) || (inclusiveEnd && key == end);
+        }
+        else {
+            return (key > start || key < end) || (inclusiveStart && key == start) || (inclusiveEnd && key == end);
+        }
+    }
+
+    public static boolean isKeyBetween(long key, long start, long end) {
+        return isKeyBetween(key, start, end, false, false);
     }
 
     public ChordNodeInfo getSuccessorInfo() {

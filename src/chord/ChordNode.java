@@ -17,6 +17,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReferenceArray;
 
 public class ChordNode implements Serializable {
+    private static final long serialVersionUID = 1L;
+
     // With an m-bit key, there can be 2^m nodes, and each has m entries in its finger table
     public static final int keyBits = 16;
     public static final long maxNodes = (long) Math.pow(2, keyBits);
@@ -25,7 +27,7 @@ public class ChordNode implements Serializable {
     // AtomicReferenceArray is used to ensure thread safety
     public AtomicReferenceArray<ChordNodeInfo> fingerTable = new AtomicReferenceArray<>(keyBits);
 
-    public final ConcurrentHashMap<Long, Queue<Runnable>> tasksMap = new ConcurrentHashMap<>();
+    public final ConcurrentHashMap<Long, Queue<ChordTask>> tasksMap = new ConcurrentHashMap<>();
 
     public ChordNode(InetSocketAddress address) {
         try {
@@ -72,6 +74,12 @@ public class ChordNode implements Serializable {
         for (int i = 0; i < fingerTable.length(); ++i) {
             fingerTable.set(i, selfInfo);
         }
+
+        FixFingersThread fixFingersThread = new FixFingersThread();
+        //Peer.executor.scheduleAtFixedRate(fixFingersThread, 0, 5, TimeUnit.SECONDS);
+
+        StabilizationThread stabilizationThread = new StabilizationThread();
+        Peer.executor.scheduleAtFixedRate(stabilizationThread, 0, 10, TimeUnit.SECONDS);
     }
 
     public void initializeFingerTable(InetSocketAddress contact) {
@@ -79,15 +87,18 @@ public class ChordNode implements Serializable {
         long successorStart = getStartKey(0);
 
         tasksMap.putIfAbsent(successorStart, new ConcurrentLinkedQueue<>());
-        tasksMap.get(successorStart).add(() -> {
-            // Schedule FixFingersThread to execute periodically
-            FixFingersThread fixFingersThread = new FixFingersThread();
-            //Peer.executor.scheduleAtFixedRate(fixFingersThread, 0, 1, TimeUnit.SECONDS);
+        tasksMap.get(successorStart).add(new ChordTask() {
+            @Override
+            public void performTask(ChordNodeInfo nodeInfo) {
+                // Schedule FixFingersThread to execute periodically
+                FixFingersThread fixFingersThread = new FixFingersThread();
+                Peer.executor.scheduleAtFixedRate(fixFingersThread, 0, 5, TimeUnit.SECONDS);
 
-            // Schedule StabilizationThread to execute periodically
-            StabilizationThread stabilizationThread = new StabilizationThread();
-            Peer.executor.scheduleAtFixedRate(stabilizationThread, 0, 5, TimeUnit.SECONDS);
-            System.out.println("Your successor is " + getSuccessorInfo());
+                // Schedule StabilizationThread to execute periodically
+                StabilizationThread stabilizationThread = new StabilizationThread();
+                Peer.executor.scheduleAtFixedRate(stabilizationThread, 0, 10, TimeUnit.SECONDS);
+                System.out.println("Your successor is " + getSuccessorInfo());
+            }
         });
 
         FindSuccessorMessage message = new FindSuccessorMessage(Peer.version, Peer.id, successorStart, Peer.address);

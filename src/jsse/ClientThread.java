@@ -37,7 +37,6 @@ public class ClientThread extends SSLThread {
 
             doHandshake(socketChannel, engine);
             sendMessage(socketChannel, engine);
-            //closeConnection(socketChannel, engine);
         }
         catch (IOException ex) {
             System.out.println("Exception in JSSE Client: " + ex.getMessage());
@@ -62,7 +61,7 @@ public class ClientThread extends SSLThread {
                     while (netData.hasRemaining()) {
                         channel.write(netData);
                     }
-                    System.out.println("Message sent");
+                    //System.out.println("Message sent");
                     break;
                 case BUFFER_OVERFLOW:
                     netData = increaseBufferCapacity(netData, engine.getSession().getPacketBufferSize());
@@ -71,7 +70,7 @@ public class ClientThread extends SSLThread {
                     break;
                 case CLOSED:
                     closeConnection(channel, engine);
-                    System.out.println("Closing connection...");
+                    //System.out.println("Closing connection...");
                     break;
             }
         }

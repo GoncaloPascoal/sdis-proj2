@@ -14,12 +14,16 @@ import java.rmi.registry.Registry;
 import java.rmi.server.UnicastRemoteObject;
 import java.security.GeneralSecurityException;
 import java.security.NoSuchAlgorithmException;
+import java.util.HashSet;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 
 import chord.ChordNode;
 import client.ClientInterface;
 import jsse.ServerThread;
 import utils.Utils;
+import workers.ReadChunkThread;
 
 public class Peer implements ClientInterface {
     public static final int CHUNK_MAX_SIZE = 64000;
@@ -35,6 +39,8 @@ public class Peer implements ClientInterface {
     public static ScheduledThreadPoolExecutor executor = new ScheduledThreadPoolExecutor(MAX_THREADS);
 
     public static PeerState state = new PeerState();
+
+    public static ConcurrentHashMap<String, Set<Integer>> chunksToReadMap = new ConcurrentHashMap<>();
 
     @Override
     public void backup(String filePath, int replicationDegree) throws RemoteException {
@@ -61,7 +67,21 @@ public class Peer implements ClientInterface {
             String fileId = Utils.calculateFileId(file);
             int numChunks = (int) (file.length() / CHUNK_MAX_SIZE + 1);
 
-            // TODO
+            chunksToReadMap.put(fileId, new HashSet<>());
+
+            for (int chunkNumber = 0; chunkNumber < numChunks; ++chunkNumber) {
+                ChunkIdentifier identifier = new ChunkIdentifier(fileId, chunkNumber);
+                //state.backupChunks.add(identifier);
+                chunksToReadMap.get(fileId).add(chunkNumber);
+                //state.chunkReplicationDegreeMap.put(identifier, new HashSet<>());
+            }
+
+            for (int chunkNumber = 0; chunkNumber < numChunks; ++chunkNumber) {
+                ReadChunkThread thread = new ReadChunkThread(channel, fileId, chunkNumber, replicationDegree);
+                executor.execute(thread);
+            }
+
+            //state.backupFilesMap.put(file.getAbsolutePath(), new FileInformation(fileId, replicationDegree, numChunks));
         }
         catch (IOException ex) {
             System.err.println("Error when reading from file: " + ex.getMessage());

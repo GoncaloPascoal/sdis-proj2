@@ -33,12 +33,12 @@ public class ServerThread extends SSLThread {
                 engine.setUseClientMode(false);
 
                 SocketChannel socketChannel = serverSocketChannel.accept();
-                System.out.println("Accepted new connection.");
+                //System.out.println("Accepted new connection.");
 
                 doHandshake(socketChannel, engine);
                 byte[] messageBytes = receiveMessage(socketChannel, engine);
 
-                System.out.println("Received message with length " + messageBytes.length + " bytes.");
+                //System.out.println("Received message with length " + messageBytes.length + " bytes.");
                 closeConnection(socketChannel, engine);
 
                 HandleReceivedMessageThread thread = new HandleReceivedMessageThread(messageBytes);
@@ -72,7 +72,7 @@ public class ServerThread extends SSLThread {
                     case BUFFER_UNDERFLOW:
                         break;
                     case CLOSED:
-                        System.out.println("Closing connection...");
+                        //System.out.println("Closing connection...");
                         closeConnection(channel, engine);
                         break;
                 }

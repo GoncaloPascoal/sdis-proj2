@@ -4,6 +4,8 @@ import java.io.Serializable;
 import java.net.InetSocketAddress;
 
 public class ChordNodeInfo implements Serializable {
+    private static final long serialVersionUID = 1L;
+
     public final long id;
     public final InetSocketAddress address;
 

@@ -2,6 +2,7 @@ package protocol;
 
 import chord.ChordNode;
 import chord.ChordNodeInfo;
+import chord.ChordTask;
 import jsse.ClientThread;
 import messages.*;
 import utils.Utils;
@@ -58,8 +59,6 @@ public class HandleReceivedMessageThread extends Thread {
     private void handleFindSuccessorMessage(FindSuccessorMessage message) {
         ChordNode chordNode = Peer.state.chordNode;
 
-        System.out.println(message.buildHeader());
-
         long start = chordNode.selfInfo.id;
         long end = chordNode.getSuccessorInfo().id;
 
@@ -74,7 +73,7 @@ public class HandleReceivedMessageThread extends Thread {
                 Peer.executor.execute(thread);
             }
             catch (IOException | GeneralSecurityException ex) {
-                System.out.println("Exception occurred when handling FIND_SUCCESSOR message: " + ex.getMessage());
+                System.err.println("Exception occurred when handling FIND_SUCCESSOR message: " + ex.getMessage());
             }
             return;
         }
@@ -86,7 +85,7 @@ public class HandleReceivedMessageThread extends Thread {
             Peer.executor.execute(thread);
         }
         catch (IOException | GeneralSecurityException ex) {
-            System.out.println("Exception occurred when handling FIND_SUCCESSOR message: " + ex.getMessage());
+            System.err.println("Exception occurred when handling FIND_SUCCESSOR message: " + ex.getMessage());
         }
     }
 
@@ -101,17 +100,26 @@ public class HandleReceivedMessageThread extends Thread {
         }
 
         if (chordNode.tasksMap.containsKey(message.key)) {
-            Queue<Runnable> taskQueue = chordNode.tasksMap.get(message.key);
+            Queue<ChordTask> taskQueue = chordNode.tasksMap.get(message.key);
 
             while (!taskQueue.isEmpty()) {
-                Runnable task = taskQueue.remove();
-                Peer.executor.execute(task);
+                taskQueue.remove().execute(message.nodeInfo);
             }
         }
     }
 
     private void handleGetPredecessorMessage(GetPredecessorMessage message) {
         ChordNode chordNode = Peer.state.chordNode;
+
+        PredecessorMessage predecessorMessage = new PredecessorMessage(Peer.version, Peer.id, chordNode.predecessorInfo);
+
+        try {
+            ClientThread thread = new ClientThread(message.nodeInfo.address, predecessorMessage);
+            Peer.executor.execute(thread);
+        }
+        catch (IOException | GeneralSecurityException ex) {
+            System.err.println("Exception occurred when handling GET_PREDECESSOR message: " + ex.getMessage());
+        }
     }
 
     private void handleNotifyMessage(NotifyMessage message) {

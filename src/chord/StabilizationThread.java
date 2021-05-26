@@ -21,11 +21,13 @@ public class StabilizationThread extends Thread {
         NotifyMessage notifyMessage = new NotifyMessage(Peer.version, Peer.id, chordNode.selfInfo);
 
         try {
-            ClientThread getPredecessorThread = new ClientThread(chordNode.getSuccessorInfo().address, getPredecessorMessage);
-            Peer.executor.execute(getPredecessorThread);
+            if (!chordNode.getSuccessorInfo().equals(chordNode.selfInfo)) {
+                ClientThread getPredecessorThread = new ClientThread(chordNode.getSuccessorInfo().address, getPredecessorMessage);
+                Peer.executor.execute(getPredecessorThread);
 
-            ClientThread notifyThread = new ClientThread(chordNode.getSuccessorInfo().address, notifyMessage);
-            Peer.executor.execute(notifyThread);
+                ClientThread notifyThread = new ClientThread(chordNode.getSuccessorInfo().address, notifyMessage);
+                Peer.executor.execute(notifyThread);
+            }
         }
         catch (IOException | GeneralSecurityException ex) {
             System.out.println("Exception when sending NOTIFY message: " + ex.getMessage());

@@ -138,13 +138,10 @@ public class SSLThread extends Thread {
                     break;
             }
         }
-
-        System.out.println("Handshake complete");
     }
 
     protected void closeConnection(SocketChannel channel, SSLEngine engine) throws IOException {
         engine.closeOutbound();
-        System.out.println("Closing connection...");
 
         int bufferSize = engine.getSession().getPacketBufferSize();
 

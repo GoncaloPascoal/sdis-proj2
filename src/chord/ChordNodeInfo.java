@@ -1,8 +1,9 @@
 package chord;
 
+import java.io.Serializable;
 import java.net.InetSocketAddress;
 
-public class ChordNodeInfo {
+public class ChordNodeInfo implements Serializable {
     public final long id;
     public final InetSocketAddress address;
 

@@ -1,5 +1,8 @@
 package client;
 
+import chord.ChordNode;
+import protocol.PeerState;
+
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
 
@@ -7,8 +10,8 @@ import java.util.Map;
 import java.util.Set;
 
 public class TestApp {
-    /*
     public static void printState(PeerState state) {
+        /*
         System.out.println("Files whose backup this peer initiated:");
 
         for (Map.Entry<String, FileInformation> entry : state.backupFilesMap.entrySet()) {
@@ -51,8 +54,20 @@ public class TestApp {
 
         double spaceOccupiedKB = (double) state.getSpaceOccupied() / 1000.0;
         System.out.println("Space occupied: " + spaceOccupiedKB + " KBytes");
+        */
+
+        System.out.println("Chord protocol information:");
+
+        ChordNode chordNode = state.chordNode;
+        System.out.println("\t- Self: " + chordNode.selfInfo);
+        System.out.println("\t- Predecessor: " + chordNode.predecessorInfo);
+
+        for (int i = 0; i < ChordNode.keyBits; ++i) {
+            System.out.print("\t- Finger[" + i + "]");
+            if (i == 0) System.out.print(" (successor)");
+            System.out.println(": " + chordNode.fingerTable.get(i));
+        }
     }
-    */
 
     public static void main(String[] args) {
         if (args.length < 2 || args.length > 4) {
@@ -94,9 +109,9 @@ public class TestApp {
                         stub.reclaim(Long.parseLong(args[2]));
                     }
                     break;
-                /*case "STATE":
+                case "STATE":
                     printState(stub.state());
-                    break;*/
+                    break;
                 default:
                     System.out.println("Error: operation " + args[1] + " is not supported.");
                     break;

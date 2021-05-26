@@ -5,6 +5,7 @@ import messages.FindSuccessorMessage;
 import protocol.Peer;
 
 import java.io.IOException;
+import java.io.Serializable;
 import java.net.InetSocketAddress;
 import java.security.GeneralSecurityException;
 import java.security.MessageDigest;
@@ -15,7 +16,7 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReferenceArray;
 
-public class ChordNode {
+public class ChordNode implements Serializable {
     // With an m-bit key, there can be 2^m nodes, and each has m entries in its finger table
     public static final int keyBits = 16;
     public static final long maxNodes = (long) Math.pow(2, keyBits);

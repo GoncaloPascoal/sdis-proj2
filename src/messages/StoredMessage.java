@@ -6,8 +6,8 @@ public class StoredMessage extends Message {
     public final String fileId;
     public final int chunkNumber;
 
-    public StoredMessage(String protocolVersion, int senderId, String fileId, int chunkNumber, byte[] body) {
-        super(protocolVersion, senderId, body);
+    public StoredMessage(String protocolVersion, int senderId, String fileId, int chunkNumber) {
+        super(protocolVersion, senderId);
 
         this.fileId = fileId;
         this.chunkNumber = chunkNumber;
@@ -20,7 +20,7 @@ public class StoredMessage extends Message {
         return String.join(" ", components);
     }
 
-    public static StoredMessage parse(String header, byte[] body) {
+    public static StoredMessage parse(String header) {
         // <Version> STORED <SenderId> <FileId> <ChunkNo> <CRLF><CRLF><Body>
         String[] headerComponents = header.split(" ");
 
@@ -33,6 +33,6 @@ public class StoredMessage extends Message {
         String fileId = headerComponents[3];
         int chunkNumber = Integer.parseInt(headerComponents[4]);
 
-        return new StoredMessage(protocolVersion, senderId, fileId, chunkNumber, body);
+        return new StoredMessage(protocolVersion, senderId, fileId, chunkNumber);
     }
 }

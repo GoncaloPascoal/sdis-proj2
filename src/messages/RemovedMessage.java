@@ -6,8 +6,8 @@ public class RemovedMessage extends Message {
     public final String fileId;
     public final int chunkNumber;
 
-    public RemovedMessage(String protocolVersion, int senderId, String fileId, int chunkNumber, byte[] body) {
-        super(protocolVersion, senderId, body);
+    public RemovedMessage(String protocolVersion, int senderId, String fileId, int chunkNumber) {
+        super(protocolVersion, senderId);
 
         this.fileId = fileId;
         this.chunkNumber = chunkNumber;
@@ -20,7 +20,7 @@ public class RemovedMessage extends Message {
         return String.join(" ", components);
     }
 
-    public static RemovedMessage parse(String header, byte[] body) {
+    public static RemovedMessage parse(String header) {
         // <Version> REMOVED <SenderId> <FileId> <ChunkNo> <CRLF><CRLF><Body>
         String[] headerComponents = header.split(" ");
 
@@ -33,6 +33,6 @@ public class RemovedMessage extends Message {
         String fileId = headerComponents[3];
         int chunkNumber = Integer.parseInt(headerComponents[4]);
 
-        return new RemovedMessage(protocolVersion, senderId, fileId, chunkNumber, body);
+        return new RemovedMessage(protocolVersion, senderId, fileId, chunkNumber);
     }
 }

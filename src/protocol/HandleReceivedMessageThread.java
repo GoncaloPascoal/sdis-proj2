@@ -6,9 +6,11 @@ import chord.ChordTask;
 import jsse.ClientThread;
 import messages.*;
 import utils.Utils;
+import workers.StoreChunkThread;
 
 import java.io.IOException;
 import java.security.GeneralSecurityException;
+import java.security.NoSuchAlgorithmException;
 import java.util.List;
 import java.util.Queue;
 
@@ -52,6 +54,14 @@ public class HandleReceivedMessageThread extends Thread {
                     case "NOTIFY": {
                         NotifyMessage message = NotifyMessage.parse(header, body);
                         if (message != null) handleNotifyMessage(message);
+                    }
+                    case "PUT_CHUNK": {
+                        PutChunkMessage message = PutChunkMessage.parse(header, body);
+                        if (message != null) handlePutChunkMessage(message);
+                    }
+                    case "STORED": {
+                        StoredMessage message = StoredMessage.parse(header);
+                        if (message != null) handleStoredMessage(message);
                     }
                     default:
                         break;
@@ -138,5 +148,22 @@ public class HandleReceivedMessageThread extends Thread {
             chordNode.predecessorInfo = message.nodeInfo;
             System.out.println("Your predecessor is " + chordNode.predecessorInfo);
         }
+    }
+
+    private void handlePutChunkMessage(PutChunkMessage message) {
+        // The chunk cannot be stored by the initiator peer
+        if (!message.initiatorAddress.equals(Peer.address)) {
+            // Store the chunk and send a STORED message to initiator peer
+            StoreChunkThread thread = new StoreChunkThread(message);
+            Peer.executor.execute(thread);
+            return;
+        }
+
+        // Message reached initiator peer, don't store chunk and forward it to successor if possible
+        message.forwardToSuccessor(false);
+    }
+
+    private void handleStoredMessage(StoredMessage message) {
+        // TODO
     }
 }

@@ -1,6 +1,13 @@
 package messages;
 
+import chord.ChordNode;
+import jsse.ClientThread;
+import protocol.Peer;
+
+import java.io.IOException;
 import java.net.InetSocketAddress;
+import java.security.GeneralSecurityException;
+import java.security.NoSuchAlgorithmException;
 
 public class PutChunkMessage extends Message {
     public static final String name = "PUTCHUNK";
@@ -48,5 +55,38 @@ public class PutChunkMessage extends Message {
         InetSocketAddress initiatorAddress = new InetSocketAddress(initiatorHostname, initiatorPort);
 
         return new PutChunkMessage(protocolVersion, senderId, fileId, chunkNumber, replicationDegree, initiatorAddress, body);
+    }
+
+    public void forwardToSuccessor(boolean stored) {
+        // Calculate the chunk's key
+        long key;
+        try {
+            key = ChordNode.generateKey((fileId + "_" + chunkNumber).getBytes());
+        }
+        catch (NoSuchAlgorithmException ex) {
+            System.err.println(ex.getMessage());
+            return;
+        }
+
+        ChordNode chordNode = Peer.state.chordNode;
+
+        if (ChordNode.isKeyBetween(key, chordNode.selfInfo.id, chordNode.getSuccessorInfo().id)) {
+            // To prevent a PUT_CHUNK message from passing through the chord ring more than once, if
+            // the message key is between this node's id and its successor's id, the message is not forwarded
+            return;
+        }
+
+        // Forward message to successor
+        senderId = Peer.id;
+        if (stored) replicationDegree -= 1;
+        if (replicationDegree != 0) {
+            try {
+                ClientThread thread = new ClientThread(chordNode.getSuccessorInfo().address, this);
+                Peer.executor.execute(thread);
+            }
+            catch (IOException | GeneralSecurityException ex) {
+                System.err.println("Error when forwarding PUT_CHUNK message: " + ex.getMessage());
+            }
+        }
     }
 }

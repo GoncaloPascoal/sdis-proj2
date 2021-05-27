@@ -41,6 +41,7 @@ public class ChordNode implements Serializable {
         }
     }
 
+
     /**
      * Generates an m-bit key to be used for the Chord protocol from a sequence of bytes. The key is
      * generated using a consistent hashing algorithm, in this case SHA-1. The 160-bit SHA-1 has is truncated
@@ -69,6 +70,31 @@ public class ChordNode implements Serializable {
         return key;
     }
 
+    public static boolean isKeyBetween(long key, long start, long end, boolean inclusiveStart, boolean inclusiveEnd) {
+        if (start < end) {
+            return (key > start && key < end) || (inclusiveStart && key == start) || (inclusiveEnd && key == end);
+        }
+        else if (start > end) {
+            return (key > start || key < end) || (inclusiveStart && key == start) || (inclusiveEnd && key == end);
+        }
+        else { // start == end
+            return key != start || inclusiveStart || inclusiveEnd;
+        }
+    }
+
+    public static boolean isKeyBetween(long key, long start, long end) {
+        return isKeyBetween(key, start, end, false, false);
+    }
+
+
+    public ChordNodeInfo getSuccessorInfo() {
+        return fingerTable.get(0);
+    }
+
+    public void setSuccessorInfo(ChordNodeInfo info) {
+        fingerTable.set(0, info);
+    }
+
     public void initializeFingerTable() {
         // Called when the node is creating a new Chord network
         for (int i = 0; i < fingerTable.length(); ++i) {
@@ -76,7 +102,7 @@ public class ChordNode implements Serializable {
         }
 
         FixFingersThread fixFingersThread = new FixFingersThread();
-        //Peer.executor.scheduleAtFixedRate(fixFingersThread, 0, 5, TimeUnit.SECONDS);
+        Peer.executor.scheduleAtFixedRate(fixFingersThread, 0, 5, TimeUnit.SECONDS);
 
         StabilizationThread stabilizationThread = new StabilizationThread();
         Peer.executor.scheduleAtFixedRate(stabilizationThread, 0, 10, TimeUnit.SECONDS);
@@ -136,24 +162,10 @@ public class ChordNode implements Serializable {
         return selfInfo;
     }
 
-    public static boolean isKeyBetween(long key, long start, long end, boolean inclusiveStart, boolean inclusiveEnd) {
-        if (start <= end) {
-            return (key > start && key < end) || (inclusiveStart && key == start) || (inclusiveEnd && key == end);
+    public void stabilize(ChordNodeInfo predecessorInfo) {
+        if (predecessorInfo != null && ChordNode.isKeyBetween(predecessorInfo.id, selfInfo.id, getSuccessorInfo().id)) {
+            setSuccessorInfo(predecessorInfo);
+            System.out.println("Your successor is: " + getSuccessorInfo());
         }
-        else {
-            return (key > start || key < end) || (inclusiveStart && key == start) || (inclusiveEnd && key == end);
-        }
-    }
-
-    public static boolean isKeyBetween(long key, long start, long end) {
-        return isKeyBetween(key, start, end, false, false);
-    }
-
-    public ChordNodeInfo getSuccessorInfo() {
-        return fingerTable.get(0);
-    }
-
-    public void setSuccessorInfo(ChordNodeInfo info) {
-        fingerTable.set(0, info);
     }
 }

@@ -5,9 +5,6 @@ import messages.GetPredecessorMessage;
 import messages.NotifyMessage;
 import protocol.Peer;
 
-import java.io.IOException;
-import java.security.GeneralSecurityException;
-
 /**
  * Thread that is executed periodically. A node asks its successor for its predecessor p and decides if
  * p should be the node's successor instead. This thread also notifies the node's successor of its existence.
@@ -28,9 +25,13 @@ public class StabilizationThread extends Thread {
                 ClientThread notifyThread = new ClientThread(chordNode.getSuccessorInfo().address, notifyMessage);
                 Peer.executor.execute(notifyThread);
             }
+            else {
+                chordNode.stabilize(chordNode.predecessorInfo);
+            }
         }
-        catch (IOException | GeneralSecurityException ex) {
-            System.out.println("Exception when sending NOTIFY message: " + ex.getMessage());
+        catch (Exception ex) {
+            System.err.println("Exception occurred when stabilizing: " + ex.getMessage());
+            ex.printStackTrace();
         }
     }
 }

@@ -29,7 +29,7 @@ public class HandleReceivedMessageThread extends Thread {
 
             String[] headerComponents = header.split(" ");
             if (headerComponents.length >= 2) {
-                System.out.println("Received " + headerComponents[1] + " message\n");
+                System.out.println("Received " + headerComponents[1] + " message");
                 switch (headerComponents[1]) {
                     case "FIND_SUCCESSOR": {
                         FindSuccessorMessage message = FindSuccessorMessage.parse(header, body);
@@ -44,6 +44,10 @@ public class HandleReceivedMessageThread extends Thread {
                     case "GET_PREDECESSOR": {
                         GetPredecessorMessage message = GetPredecessorMessage.parse(header, body);
                         if (message != null) handleGetPredecessorMessage(message);
+                    }
+                    case "PREDECESSOR": {
+                        PredecessorMessage message = PredecessorMessage.parse(header, body);
+                        if (message != null) handlePredecessorMessage(message);
                     }
                     case "NOTIFY": {
                         NotifyMessage message = NotifyMessage.parse(header, body);
@@ -120,6 +124,10 @@ public class HandleReceivedMessageThread extends Thread {
         catch (IOException | GeneralSecurityException ex) {
             System.err.println("Exception occurred when handling GET_PREDECESSOR message: " + ex.getMessage());
         }
+    }
+
+    private void handlePredecessorMessage(PredecessorMessage message) {
+        Peer.state.chordNode.stabilize(message.predecessorInfo);
     }
 
     private void handleNotifyMessage(NotifyMessage message) {

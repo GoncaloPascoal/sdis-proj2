@@ -17,7 +17,7 @@ public class ClientThread extends SSLThread {
     private final Message message;
 
     public ClientThread(InetSocketAddress destinationAddress, Message message) throws GeneralSecurityException, IOException {
-        super("TLS", Peer.clientKeysPath, Peer.trustStorePath, Peer.password);
+        super("TLS", Peer.keyStorePath, Peer.trustStorePath, Peer.password);
 
         this.destinationAddress = destinationAddress;
         this.message = message;

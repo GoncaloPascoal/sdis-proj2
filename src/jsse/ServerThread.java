@@ -17,7 +17,7 @@ public class ServerThread extends SSLThread {
     private final ServerSocketChannel serverSocketChannel;
 
     public ServerThread() throws GeneralSecurityException, IOException {
-        super("TLS", Peer.serverKeysPath, Peer.trustStorePath, Peer.password);
+        super("TLS", Peer.keyStorePath, Peer.trustStorePath, Peer.password);
 
         serverSocketChannel = ServerSocketChannel.open();
         serverSocketChannel.socket().bind(Peer.address);

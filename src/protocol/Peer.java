@@ -33,7 +33,7 @@ public class Peer implements ClientInterface {
     public static int id;
     public static InetSocketAddress address;
 
-    public static String clientKeysPath, serverKeysPath, trustStorePath, password;
+    public static String keyStorePath, trustStorePath, password;
 
     public static final int MAX_THREADS = 50;
     public static ScheduledThreadPoolExecutor executor = new ScheduledThreadPoolExecutor(MAX_THREADS);
@@ -118,7 +118,7 @@ public class Peer implements ClientInterface {
     }
 
     public static void main(String[] args) {
-        if (args.length != 9 && args.length != 11) {
+        if (args.length != 8 && args.length != 10) {
             printUsage();
             return;
         }
@@ -139,15 +139,14 @@ public class Peer implements ClientInterface {
         }
 
         // Keystore Setup
-        clientKeysPath = args[3];
-        serverKeysPath = args[4];
-        trustStorePath = args[5];
-        password = args[6];
+        keyStorePath = args[3];
+        trustStorePath = args[4];
+        password = args[5];
 
         // Chord Setup
-        address = new InetSocketAddress(args[7], Integer.parseInt(args[8]));
+        address = new InetSocketAddress(args[6], Integer.parseInt(args[7]));
         if (address.isUnresolved()) {
-            System.err.println("Invalid hostname: '" + args[7] + "'");
+            System.err.println("Invalid hostname: '" + args[6] + "'");
             return;
         }
 
@@ -167,21 +166,21 @@ public class Peer implements ClientInterface {
 
         state.chordNode = new ChordNode(address);
 
-        if (args.length == 11) {
+        if (args.length == 10) {
             // Joining an existing Chord network
-            InetSocketAddress contactAddress = new InetSocketAddress(args[9], Integer.parseInt(args[10]));
+            InetSocketAddress contactAddress = new InetSocketAddress(args[8], Integer.parseInt(args[9]));
 
             if (contactAddress.isUnresolved()) {
-                System.err.println("Invalid hostname: '" + args[9] + "'");
+                System.err.println("Invalid hostname: '" + args[8] + "'");
                 return;
             }
 
             System.out.println("Joining existing network, will contact peer at: " + contactAddress.getAddress().getHostAddress() + ":" + contactAddress.getPort());
-            state.chordNode.initializeFingerTable(contactAddress);
+            state.chordNode.joinNetwork(contactAddress);
         }
         else {
             // Creating a new Chord network
-            state.chordNode.initializeFingerTable();
+            state.chordNode.joinNetwork();
 
             System.out.println("Successfully joined the network with id = " + state.chordNode.selfInfo.id + ".");
             System.out.println("Your successor is " + state.chordNode.getSuccessorInfo() + ".");

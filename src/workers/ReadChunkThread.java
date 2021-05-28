@@ -55,9 +55,12 @@ public class ReadChunkThread extends Thread {
 
             // Calculate chord key for chunk
             long key = ChordNode.generateKey((fileId + "_" + chunkNumber).getBytes());
+            
+            byte[] body = new byte[bytesRead];
+            System.arraycopy(buffer.array(), 0, body, 0, bytesRead);
 
             PutChunkMessage putChunkMessage = new PutChunkMessage(Peer.version, Peer.id, fileId, chunkNumber,
-                    replicationDegree, Peer.address, buffer.array());
+                    replicationDegree, Peer.address, body);
 
             // key in (self.id, successor.id] -> successor is responsible for the key
             if (ChordNode.isKeyBetween(key, chordNode.selfInfo.id, chordNode.getSuccessorInfo().id, false, true)) {

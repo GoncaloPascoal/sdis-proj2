@@ -1,7 +1,7 @@
 package messages;
 
 public class GetChunkMessage extends Message {
-    public static final String name = "GETCHUNK";
+    public static final String name = "GET_CHUNK";
 
     public final String fileId;
     public final int chunkNumber;

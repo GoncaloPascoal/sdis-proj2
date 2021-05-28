@@ -107,7 +107,7 @@ public class HandleReceivedMessageThread extends Thread {
         long keyDifference = message.key - chordNode.selfInfo.id;
         if (keyDifference < 0) keyDifference += ChordNode.maxNodes;
 
-        if (keyDifference > 0 && (keyDifference & -keyDifference) == keyDifference) {
+        if ((keyDifference & -keyDifference) == keyDifference) {
             // The key difference is a power of two, update the finger table
             int index = (int) Math.round(Math.log(keyDifference) / Math.log(2));
             chordNode.fingerTable.set(index, message.nodeInfo);

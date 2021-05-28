@@ -10,7 +10,7 @@ import java.security.GeneralSecurityException;
 import java.security.NoSuchAlgorithmException;
 
 public class PutChunkMessage extends Message {
-    public static final String name = "PUTCHUNK";
+    public static final String name = "PUT_CHUNK";
 
     public final String fileId;
     public final int chunkNumber;

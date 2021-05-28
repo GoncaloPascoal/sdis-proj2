@@ -63,8 +63,12 @@ public class TestApp {
         System.out.println("\t- Predecessor: " + chordNode.predecessorInfo);
 
         for (int i = 0; i < ChordNode.keyBits; ++i) {
+            long startKey = (chordNode.selfInfo.id + (long) Math.pow(2, i)) % ChordNode.maxNodes;
+            long endKey = (startKey + (long) Math.pow(2, i) - 1) % ChordNode.maxNodes;
+
             System.out.print("\t- Finger[" + i + "]");
             if (i == 0) System.out.print(" (successor)");
+            System.out.print(" [" + startKey + ", " + endKey + "]");
             System.out.println(": " + chordNode.fingerTable.get(i));
         }
     }

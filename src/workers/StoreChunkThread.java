@@ -27,7 +27,7 @@ public class StoreChunkThread extends Thread {
 
         // Attempt to store chunk
         synchronized (lock) {
-            if (Peer.state.maxDiskSpace != null || Peer.state.getSpaceOccupied() + message.body.length <= Peer.state.maxDiskSpace) {
+            if (Peer.state.maxDiskSpace == null || Peer.state.getSpaceOccupied() + message.body.length <= Peer.state.maxDiskSpace) {
                 // Have enough space to store this chunk
                 stored = true;
             }
@@ -55,7 +55,7 @@ public class StoreChunkThread extends Thread {
             }
 
             // Send STORED message
-            StoredMessage storedMessage = new StoredMessage(Peer.version, Peer.id, message.fileId, message.chunkNumber);
+            StoredMessage storedMessage = new StoredMessage(Peer.version, Peer.id, message.fileId, message.chunkNumber, Peer.address);
             try {
                 ClientThread storedThread = new ClientThread(message.initiatorAddress, storedMessage);
                 Peer.executor.execute(storedThread);

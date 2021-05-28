@@ -33,7 +33,7 @@ public class Peer implements ClientInterface {
     public static int id;
     public static InetSocketAddress address;
 
-    public static String keyStorePath, trustStorePath, password;
+    public static String clientKeysPath, serverKeysPath, trustStorePath, password;
 
     public static final int MAX_THREADS = 50;
     public static ScheduledThreadPoolExecutor executor = new ScheduledThreadPoolExecutor(MAX_THREADS);
@@ -112,13 +112,13 @@ public class Peer implements ClientInterface {
     }
 
     public static void printUsage() {
-        System.out.println("Usage: Peer <protocol_version> <peer_id> <service_ap> <keystore_path> <truststore_path> <password> <addr> <port> [chord_addr chord_port].");
+        System.out.println("Usage: Peer <protocol_version> <peer_id> <service_ap> <client_keys_path> <server_keys_path> <truststore_path> <password> <addr> <port> [chord_addr chord_port].");
         System.out.println("When run without the last two arguments, a new Chord network is created.");
         System.out.println("Otherwise, the protocol.Peer will join the network specified by chord_addr:chord_port.");
     }
 
     public static void main(String[] args) {
-        if (args.length != 8 && args.length != 10) {
+        if (args.length != 9 && args.length != 11) {
             printUsage();
             return;
         }
@@ -139,14 +139,15 @@ public class Peer implements ClientInterface {
         }
 
         // Keystore Setup
-        keyStorePath = args[3];
-        trustStorePath = args[4];
-        password = args[5];
+        clientKeysPath = args[3];
+        serverKeysPath = args[4];
+        trustStorePath = args[5];
+        password = args[6];
 
         // Chord Setup
-        address = new InetSocketAddress(args[6], Integer.parseInt(args[7]));
+        address = new InetSocketAddress(args[7], Integer.parseInt(args[8]));
         if (address.isUnresolved()) {
-            System.err.println("Invalid hostname: '" + args[6] + "'");
+            System.err.println("Invalid hostname: '" + args[7] + "'");
             return;
         }
 
@@ -166,12 +167,12 @@ public class Peer implements ClientInterface {
 
         state.chordNode = new ChordNode(address);
 
-        if (args.length == 10) {
+        if (args.length == 11) {
             // Joining an existing Chord network
-            InetSocketAddress contactAddress = new InetSocketAddress(args[8], Integer.parseInt(args[9]));
+            InetSocketAddress contactAddress = new InetSocketAddress(args[9], Integer.parseInt(args[10]));
 
             if (contactAddress.isUnresolved()) {
-                System.err.println("Invalid hostname: '" + args[8] + "'");
+                System.err.println("Invalid hostname: '" + args[9] + "'");
                 return;
             }
 

@@ -15,13 +15,13 @@ public class FixFingersThread extends Thread {
         System.out.println("Attempting to fix finger #" + nextFinger);
 
         ChordNode chordNode = Peer.state.chordNode;
-        long startKey = chordNode.selfInfo.id + (long) Math.pow(2, nextFinger);
+        long startKey = (chordNode.selfInfo.id + (long) Math.pow(2, nextFinger)) % ChordNode.maxNodes;
 
         FindSuccessorMessage message = new FindSuccessorMessage(Peer.version, Peer.id, startKey,
                 chordNode.selfInfo.address);
 
         try {
-            ClientThread thread = new ClientThread(chordNode.getSuccessorInfo().address, message);
+            ClientThread thread = new ClientThread(chordNode.selfInfo.address, message);
             Peer.executor.execute(thread);
             nextFinger = (nextFinger + 1) % ChordNode.keyBits;
         }

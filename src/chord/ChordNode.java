@@ -2,6 +2,8 @@ package chord;
 
 import jsse.ClientThread;
 import messages.FindSuccessorMessage;
+import messages.GetPredecessorMessage;
+import messages.NotifyMessage;
 import protocol.Peer;
 
 import java.io.IOException;
@@ -20,7 +22,7 @@ public class ChordNode implements Serializable {
     private static final long serialVersionUID = 1L;
 
     // With an m-bit key, there can be 2^m nodes, and each has m entries in its finger table
-    public static final int keyBits = 16;
+    public static final int keyBits = 10;
     public static final long maxNodes = (long) Math.pow(2, keyBits);
 
     public ChordNodeInfo selfInfo, predecessorInfo = null;
@@ -95,17 +97,23 @@ public class ChordNode implements Serializable {
         fingerTable.set(0, info);
     }
 
+    private void startPeriodicTasks() {
+        // Schedule FixFingersThread to execute periodically
+        FixFingersThread fixFingersThread = new FixFingersThread();
+        Peer.executor.scheduleAtFixedRate(fixFingersThread, 0, 2, TimeUnit.SECONDS);
+
+        // Schedule StabilizationThread to execute periodically
+        StabilizationThread stabilizationThread = new StabilizationThread();
+        Peer.executor.scheduleAtFixedRate(stabilizationThread, 0, 5, TimeUnit.SECONDS);
+    }
+
     public void initializeFingerTable() {
         // Called when the node is creating a new Chord network
         for (int i = 0; i < fingerTable.length(); ++i) {
             fingerTable.set(i, selfInfo);
         }
 
-        FixFingersThread fixFingersThread = new FixFingersThread();
-        Peer.executor.scheduleAtFixedRate(fixFingersThread, 0, 5, TimeUnit.SECONDS);
-
-        StabilizationThread stabilizationThread = new StabilizationThread();
-        Peer.executor.scheduleAtFixedRate(stabilizationThread, 0, 10, TimeUnit.SECONDS);
+        startPeriodicTasks();
     }
 
     public void initializeFingerTable(InetSocketAddress contact) {
@@ -116,14 +124,20 @@ public class ChordNode implements Serializable {
         tasksMap.get(successorStart).add(new ChordTask() {
             @Override
             public void performTask(ChordNodeInfo nodeInfo) {
-                // Schedule FixFingersThread to execute periodically
-                FixFingersThread fixFingersThread = new FixFingersThread();
-                Peer.executor.scheduleAtFixedRate(fixFingersThread, 0, 5, TimeUnit.SECONDS);
+                startPeriodicTasks();
 
-                // Schedule StabilizationThread to execute periodically
-                StabilizationThread stabilizationThread = new StabilizationThread();
-                Peer.executor.scheduleAtFixedRate(stabilizationThread, 0, 10, TimeUnit.SECONDS);
-                System.out.println("Your successor is " + getSuccessorInfo());
+                // Update the new node's finger table
+                try {
+                    for (int i = 1; i < keyBits; ++i) {
+                        long fingerStart = selfInfo.id + (long) Math.pow(2, i);
+                        FindSuccessorMessage message = new FindSuccessorMessage(Peer.version, Peer.id, fingerStart, Peer.address);
+                        ClientThread thread = new ClientThread(contact, message);
+                        Peer.executor.execute(thread);
+                    }
+                }
+                catch (IOException | GeneralSecurityException ex) {
+                    System.err.println("Error when updating new node's finger table: " + ex.getMessage());
+                }
             }
         });
 
@@ -131,10 +145,10 @@ public class ChordNode implements Serializable {
 
         try {
             ClientThread thread = new ClientThread(contact, message);
-            thread.start();
+            Peer.executor.execute(thread);
         }
         catch (IOException | GeneralSecurityException ex) {
-            System.out.println("Exception when sending FIND_SUCCESSOR message: " + ex.getMessage());
+            System.err.println("Error when sending FIND_SUCCESSOR message: " + ex.getMessage());
         }
     }
 

@@ -76,14 +76,10 @@ public class HandleReceivedMessageThread extends Thread {
         long start = chordNode.selfInfo.id;
         long end = chordNode.getSuccessorInfo().id;
 
-        ChordNodeInfo closestPrecedingNode = chordNode.getClosestPrecedingNode(message.key);
-
-        if ((message.key > start && message.key <= end)
-                || (start > end && (message.key > start || message.key <= end))
-                || closestPrecedingNode.equals(chordNode.selfInfo)) {
+        if (ChordNode.isKeyBetween(message.key, start, end, false, true)) {
             try {
                 ClientThread thread = new ClientThread(message.initiatorAddress,
-                        new SuccessorMessage(Peer.version, Peer.id, message.key, chordNode.selfInfo));
+                        new SuccessorMessage(Peer.version, Peer.id, message.key, chordNode.getSuccessorInfo()));
                 Peer.executor.execute(thread);
             }
             catch (IOException | GeneralSecurityException ex) {
@@ -92,6 +88,7 @@ public class HandleReceivedMessageThread extends Thread {
             return;
         }
 
+        ChordNodeInfo closestPrecedingNode = chordNode.getClosestPrecedingNode(message.key);
         message.senderId = Peer.id;
 
         try {
@@ -106,7 +103,10 @@ public class HandleReceivedMessageThread extends Thread {
     public void handleSuccessorMessage(SuccessorMessage message) {
         ChordNode chordNode = Peer.state.chordNode;
 
+        // Since we are working with modular arithmetic, we need to take precautions when calculating keyDifference
         long keyDifference = message.key - chordNode.selfInfo.id;
+        if (keyDifference < 0) keyDifference += ChordNode.maxNodes;
+
         if (keyDifference > 0 && (keyDifference & -keyDifference) == keyDifference) {
             // The key difference is a power of two, update the finger table
             int index = (int) Math.round(Math.log(keyDifference) / Math.log(2));

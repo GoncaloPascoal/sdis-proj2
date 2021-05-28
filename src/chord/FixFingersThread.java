@@ -12,8 +12,6 @@ public class FixFingersThread extends Thread {
 
     @Override
     public void run() {
-        System.out.println("Attempting to fix finger #" + nextFinger);
-
         ChordNode chordNode = Peer.state.chordNode;
         long startKey = (chordNode.selfInfo.id + (long) Math.pow(2, nextFinger)) % ChordNode.maxNodes;
 

@@ -100,24 +100,31 @@ public class ChordNode implements Serializable {
     private void startPeriodicTasks() {
         // Schedule FixFingersThread to execute periodically
         FixFingersThread fixFingersThread = new FixFingersThread();
-        Peer.executor.scheduleAtFixedRate(fixFingersThread, 0, 2, TimeUnit.SECONDS);
+        Peer.executor.scheduleAtFixedRate(fixFingersThread, 0, 250, TimeUnit.MILLISECONDS);
 
         // Schedule StabilizationThread to execute periodically
         StabilizationThread stabilizationThread = new StabilizationThread();
-        Peer.executor.scheduleAtFixedRate(stabilizationThread, 0, 5, TimeUnit.SECONDS);
+        Peer.executor.scheduleAtFixedRate(stabilizationThread, 0, 3, TimeUnit.SECONDS);
     }
 
     public void initializeFingerTable() {
-        // Called when the node is creating a new Chord network
+        // Set all fingers to point to this node. Usually these will be overridden, but it ensures there will
+        // be no null fingers in the finger table.
         for (int i = 0; i < fingerTable.length(); ++i) {
             fingerTable.set(i, selfInfo);
         }
+    }
 
+    public void joinNetwork() {
+        // Called when the node is creating a new Chord network
+        initializeFingerTable();
         startPeriodicTasks();
     }
 
-    public void initializeFingerTable(InetSocketAddress contact) {
+    public void joinNetwork(InetSocketAddress contact) {
         // Called when the node is joining a new Chord network
+        initializeFingerTable();
+
         long successorStart = getStartKey(0);
 
         tasksMap.putIfAbsent(successorStart, new ConcurrentLinkedQueue<>());

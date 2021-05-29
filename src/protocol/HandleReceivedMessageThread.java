@@ -8,9 +8,9 @@ import messages.*;
 import utils.Utils;
 import workers.StoreChunkThread;
 
+import java.io.File;
 import java.io.IOException;
 import java.security.GeneralSecurityException;
-import java.security.NoSuchAlgorithmException;
 import java.util.List;
 import java.util.Queue;
 
@@ -31,7 +31,7 @@ public class HandleReceivedMessageThread extends Thread {
 
             String[] headerComponents = header.split(" ");
             if (headerComponents.length >= 2) {
-                System.out.println("Received " + headerComponents[1] + " message");
+                //System.out.println("Received " + headerComponents[1] + " message");
                 switch (headerComponents[1]) {
                     case "FIND_SUCCESSOR": {
                         FindSuccessorMessage message = FindSuccessorMessage.parse(header, body);
@@ -46,22 +46,32 @@ public class HandleReceivedMessageThread extends Thread {
                     case "GET_PREDECESSOR": {
                         GetPredecessorMessage message = GetPredecessorMessage.parse(header, body);
                         if (message != null) handleGetPredecessorMessage(message);
+                        break;
                     }
                     case "PREDECESSOR": {
                         PredecessorMessage message = PredecessorMessage.parse(header, body);
                         if (message != null) handlePredecessorMessage(message);
+                        break;
                     }
                     case "NOTIFY": {
                         NotifyMessage message = NotifyMessage.parse(header, body);
                         if (message != null) handleNotifyMessage(message);
+                        break;
                     }
                     case "PUT_CHUNK": {
                         PutChunkMessage message = PutChunkMessage.parse(header, body);
                         if (message != null) handlePutChunkMessage(message);
+                        break;
                     }
                     case "STORED": {
                         StoredMessage message = StoredMessage.parse(header);
                         if (message != null) handleStoredMessage(message);
+                        break;
+                    }
+                    case "DELETE": {
+                        DeleteMessage message = DeleteMessage.parse(header);
+                        if (message != null) handleDeleteMessage(message);
+                        break;
                     }
                     default:
                         break;
@@ -164,6 +174,31 @@ public class HandleReceivedMessageThread extends Thread {
     }
 
     private void handleStoredMessage(StoredMessage message) {
-        // TODO
+        ChunkIdentifier identifier = new ChunkIdentifier(message.fileId, message.chunkNumber);
+        Peer.state.chunkReplicationDegreeMap.get(identifier).add(message.senderAddress);
+    }
+
+    private void handleDeleteMessage(DeleteMessage message) {
+        // Get folder corresponding to file id
+        String fileId = message.fileId;
+        File folder = new File("peer" + Peer.id + File.separator + fileId);
+
+        if (folder.exists() && folder.isDirectory()) {
+            File[] chunkFiles = folder.listFiles();
+            if (chunkFiles != null) {
+                for (File chunkFile : chunkFiles) {
+                    try {
+                        int chunkNumber = Integer.parseInt(chunkFile.getName());
+                        ChunkIdentifier identifier = new ChunkIdentifier(fileId, chunkNumber);
+                        Peer.state.storedChunksMap.remove(identifier);
+                        chunkFile.delete();
+                    }
+                    catch (NumberFormatException ex) {
+                        System.out.println("Chunk file has invalid name: " + ex.getMessage());
+                    }
+                }
+            }
+            folder.delete();
+        }
     }
 }

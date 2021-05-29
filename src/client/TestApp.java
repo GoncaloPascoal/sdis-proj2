@@ -1,8 +1,12 @@
 package client;
 
 import chord.ChordNode;
+import protocol.ChunkIdentifier;
+import protocol.ChunkInformation;
+import protocol.FileInformation;
 import protocol.PeerState;
 
+import java.net.InetSocketAddress;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
 
@@ -12,6 +16,15 @@ import java.util.Set;
 public class TestApp {
     public static void printState(PeerState state) {
         /*
+        if (state.maxDiskSpace != null) {
+            double maxDiskSpaceKB = (double) state.maxDiskSpace / 1000.0;
+            System.out.println("Maximum disk space: " + maxDiskSpaceKB + " KBytes");
+        }
+
+        double spaceOccupiedKB = (double) state.getSpaceOccupied() / 1000.0;
+        System.out.println("Space occupied: " + spaceOccupiedKB + " KBytes");
+        */
+
         System.out.println("Files whose backup this peer initiated:");
 
         for (Map.Entry<String, FileInformation> entry : state.backupFilesMap.entrySet()) {
@@ -21,7 +34,7 @@ public class TestApp {
             System.out.println("\tID: " + value.fileId);
             System.out.println("\tDesired replication degree: " + value.desiredReplicationDegree);
 
-            for (Map.Entry<ChunkIdentifier, Set<Integer>> chunkEntry : state.chunkReplicationDegreeMap.entrySet()) {
+            for (Map.Entry<ChunkIdentifier, Set<InetSocketAddress>> chunkEntry : state.chunkReplicationDegreeMap.entrySet()) {
                 if (value.fileId.equals(chunkEntry.getKey().fileId)) {
                     System.out.println("\tChunk " + chunkEntry.getKey().chunkNumber);
                     System.out.println("\t\tPerceived replication degree: " + chunkEntry.getValue().size());
@@ -33,28 +46,18 @@ public class TestApp {
 
         System.out.println("Chunks this peer is backing up:");
 
-        for (Map.Entry<ChunkIdentifier, Chunk> entry : state.storedChunksMap.entrySet()) {
+        for (Map.Entry<ChunkIdentifier, ChunkInformation> entry : state.storedChunksMap.entrySet()) {
             ChunkIdentifier key = entry.getKey();
-            Chunk value = entry.getValue();
+            ChunkInformation value = entry.getValue();
 
             double sizeKB = (double) value.size / 1000.0;
 
             System.out.println("File " + key.fileId + " | Chunk " + key.chunkNumber);
             System.out.println("\tSize: " + sizeKB + " KBytes");
             System.out.println("\tDesired replication degree: " + value.desiredReplicationDegree);
-            System.out.println("\tPerceived replication degree: " + state.chunkReplicationDegreeMap.get(key).size());
 
             System.out.println();
         }
-
-        if (state.maxDiskSpace != null) {
-            double maxDiskSpaceKB = (double) state.maxDiskSpace / 1000.0;
-            System.out.println("Maximum disk space: " + maxDiskSpaceKB + " KBytes");
-        }
-
-        double spaceOccupiedKB = (double) state.getSpaceOccupied() / 1000.0;
-        System.out.println("Space occupied: " + spaceOccupiedKB + " KBytes");
-        */
 
         System.out.println("Chord protocol information:");
 

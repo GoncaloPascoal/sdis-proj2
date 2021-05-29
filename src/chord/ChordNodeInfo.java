@@ -27,4 +27,9 @@ public class ChordNodeInfo implements Serializable {
         ChordNodeInfo other = (ChordNodeInfo) o;
         return id == other.id && Objects.equals(address, other.address);
     }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(id, address);
+    }
 }

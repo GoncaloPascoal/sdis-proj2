@@ -5,6 +5,7 @@ import jsse.ClientThread;
 import messages.PutChunkMessage;
 import messages.StoredMessage;
 import protocol.ChunkIdentifier;
+import protocol.ChunkInformation;
 import protocol.Peer;
 
 import java.io.File;
@@ -34,6 +35,10 @@ public class StoreChunkThread extends Thread {
         }
 
         if (stored) {
+            ChunkIdentifier identifier = new ChunkIdentifier(message.fileId, message.chunkNumber);
+            Peer.state.storedChunksMap.putIfAbsent(identifier,
+                    new ChunkInformation(message.body.length, message.replicationDegree));
+
             // Store chunk in file system
             String path = "peer" + Peer.id + File.separator + message.fileId + File.separator + message.chunkNumber;
             File chunkFile = new File(path);

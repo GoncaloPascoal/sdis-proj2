@@ -20,8 +20,11 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 
 import chord.ChordNode;
+import chord.ChordNodeInfo;
 import client.ClientInterface;
+import jsse.ClientThread;
 import jsse.ServerThread;
+import messages.DeleteMessage;
 import utils.Utils;
 import workers.ReadChunkThread;
 
@@ -73,7 +76,7 @@ public class Peer implements ClientInterface {
                 ChunkIdentifier identifier = new ChunkIdentifier(fileId, chunkNumber);
                 //state.backupChunks.add(identifier);
                 chunksToReadMap.get(fileId).add(chunkNumber);
-                //state.chunkReplicationDegreeMap.put(identifier, new HashSet<>());
+                state.chunkReplicationDegreeMap.put(identifier, ConcurrentHashMap.newKeySet());
             }
 
             for (int chunkNumber = 0; chunkNumber < numChunks; ++chunkNumber) {
@@ -81,7 +84,12 @@ public class Peer implements ClientInterface {
                 executor.execute(thread);
             }
 
-            //state.backupFilesMap.put(file.getAbsolutePath(), new FileInformation(fileId, replicationDegree, numChunks));
+            try {
+                state.backupFilesMap.put(file.getCanonicalPath(), new FileInformation(fileId, replicationDegree, numChunks));
+            }
+            catch (IOException ex) {
+                System.out.println("Error when converting to canonical file path: " + ex.getMessage());
+            }
         }
         catch (IOException ex) {
             System.err.println("Error when reading from file: " + ex.getMessage());
@@ -98,7 +106,44 @@ public class Peer implements ClientInterface {
 
     @Override
     public void delete(String filePath) throws RemoteException {
+        File file = new File(filePath);
 
+        FileInformation information;
+        try {
+            String canonicalPath = file.getCanonicalPath();
+            information = state.backupFilesMap.get(canonicalPath);
+            state.backupFilesMap.remove(canonicalPath);
+        }
+        catch (IOException ex) {
+            System.out.println("Error when converting to canonical file path: " + ex.getMessage());
+            return;
+        }
+
+        if (information == null) {
+            System.err.println("Error: the specified file wasn't backed up by this peer");
+            return;
+        }
+
+        String fileId = information.fileId;
+        DeleteMessage message = new DeleteMessage(Peer.version, Peer.id, fileId);
+
+        Set<InetSocketAddress> peers = new HashSet<>();
+
+        for (int chunkNumber = 0; chunkNumber < information.numChunks; ++chunkNumber) {
+            ChunkIdentifier identifier = new ChunkIdentifier(fileId, chunkNumber);
+            peers.addAll(state.chunkReplicationDegreeMap.get(identifier));
+            state.chunkReplicationDegreeMap.remove(identifier);
+        }
+
+        for (InetSocketAddress address : peers) {
+            try {
+                ClientThread thread = new ClientThread(address, message);
+                Peer.executor.execute(thread);
+            }
+            catch (IOException | GeneralSecurityException ex) {
+                System.err.println("Error when sending DELETE message: " + ex.getMessage());
+            }
+        }
     }
 
     @Override

@@ -5,9 +5,8 @@ public class DeleteMessage extends Message {
 
     public final String fileId;
 
-    public DeleteMessage(String protocolVersion, int senderId, String fileId, byte[] body) {
-        super(protocolVersion, senderId, body);
-
+    public DeleteMessage(String protocolVersion, int senderId, String fileId) {
+        super(protocolVersion, senderId);
         this.fileId = fileId;
     }
 
@@ -18,7 +17,7 @@ public class DeleteMessage extends Message {
         return String.join(" ", components);
     }
 
-    public static DeleteMessage parse(String header, byte[] body) {
+    public static DeleteMessage parse(String header) {
         // <Version> DELETE <SenderId> <FileId> <CRLF><CRLF><Body>
         String[] headerComponents = header.split(" ");
 
@@ -30,6 +29,6 @@ public class DeleteMessage extends Message {
         int senderId = Integer.parseInt(headerComponents[2]);
         String fileId = headerComponents[3];
 
-        return new DeleteMessage(protocolVersion, senderId, fileId, body);
+        return new DeleteMessage(protocolVersion, senderId, fileId);
     }
 }

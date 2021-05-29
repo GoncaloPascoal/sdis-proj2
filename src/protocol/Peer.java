@@ -5,6 +5,7 @@ import java.io.IOException;
 import java.net.InetSocketAddress;
 
 import java.nio.channels.AsynchronousFileChannel;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
 
@@ -14,17 +15,19 @@ import java.rmi.registry.Registry;
 import java.rmi.server.UnicastRemoteObject;
 import java.security.GeneralSecurityException;
 import java.security.NoSuchAlgorithmException;
+import java.util.Collections;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 
 import chord.ChordNode;
-import chord.ChordNodeInfo;
 import client.ClientInterface;
 import jsse.ClientThread;
 import jsse.ServerThread;
 import messages.DeleteMessage;
+import messages.GetChunkMessage;
 import utils.Utils;
 import workers.ReadChunkThread;
 
@@ -43,7 +46,14 @@ public class Peer implements ClientInterface {
 
     public static PeerState state = new PeerState();
 
-    public static ConcurrentHashMap<String, Set<Integer>> chunksToReadMap = new ConcurrentHashMap<>();
+    // List of chunks that have to be read from the file before the corresponding AsynchronousFileChannel is closed
+    public static final ConcurrentHashMap<String, Set<Integer>> chunksToReadMap = new ConcurrentHashMap<>();
+
+    // List of chunks that have to be written to the restored file before the corresponding AsynchronousFileChannel is closed
+    public static final ConcurrentHashMap<String, Set<Integer>> chunksToRestoreMap = new ConcurrentHashMap<>();
+
+    // Maps file IDs to their respective AsynchronousFileChannel, which is used by worker threads when restoring the file
+    public static final ConcurrentHashMap<String, AsynchronousFileChannel> restoredFileChannelMap = new ConcurrentHashMap<>();
 
     @Override
     public void backup(String filePath, int replicationDegree) throws RemoteException {
@@ -76,7 +86,7 @@ public class Peer implements ClientInterface {
                 ChunkIdentifier identifier = new ChunkIdentifier(fileId, chunkNumber);
                 //state.backupChunks.add(identifier);
                 chunksToReadMap.get(fileId).add(chunkNumber);
-                state.chunkReplicationDegreeMap.put(identifier, ConcurrentHashMap.newKeySet());
+                state.chunkReplicationDegreeMap.put(identifier, Collections.synchronizedSet(new LinkedHashSet<>()));
             }
 
             for (int chunkNumber = 0; chunkNumber < numChunks; ++chunkNumber) {
@@ -88,7 +98,7 @@ public class Peer implements ClientInterface {
                 state.backupFilesMap.put(file.getCanonicalPath(), new FileInformation(fileId, replicationDegree, numChunks));
             }
             catch (IOException ex) {
-                System.out.println("Error when converting to canonical file path: " + ex.getMessage());
+                System.err.println("Error when converting to canonical file path: " + ex.getMessage());
             }
         }
         catch (IOException ex) {
@@ -101,7 +111,54 @@ public class Peer implements ClientInterface {
 
     @Override
     public void restore(String filePath) throws RemoteException {
+        File file = new File(filePath);
 
+        FileInformation information;
+        try {
+            information = state.backupFilesMap.get(file.getCanonicalPath());
+        }
+        catch (IOException ex) {
+            System.err.println("Error when converting to canonical file path: " + ex.getMessage());
+            return;
+        }
+
+        if (information == null) {
+            System.err.println("Error: the specified file wasn't backed up by this peer");
+            return;
+        }
+
+        Path path = Paths.get("peer" + id + File.separator + "restored" + File.separator + information.fileId + File.separator + file.getName());
+        path.toFile().getParentFile().mkdirs();
+
+        chunksToRestoreMap.put(information.fileId, ConcurrentHashMap.newKeySet());
+
+        try {
+            AsynchronousFileChannel channel = AsynchronousFileChannel.open(path, StandardOpenOption.CREATE, StandardOpenOption.WRITE);
+            restoredFileChannelMap.put(information.fileId, channel);
+        }
+        catch (IOException ex) {
+            ex.printStackTrace();
+            return;
+        }
+
+        for (int chunkNumber = 0; chunkNumber < information.numChunks; ++chunkNumber) {
+            GetChunkMessage message = new GetChunkMessage(Peer.version, Peer.id, information.fileId, chunkNumber, Peer.address);
+            ChunkIdentifier identifier = new ChunkIdentifier(information.fileId, chunkNumber);
+            InetSocketAddress firstPeerAddress = state.chunkReplicationDegreeMap.get(identifier).iterator().next();
+
+            if (firstPeerAddress == null) {
+                System.err.println("Error: no peer has backed up chunk " + chunkNumber + " of file with id " + information.fileId);
+                return;
+            }
+
+            try {
+                ClientThread thread = new ClientThread(firstPeerAddress, message);
+                executor.execute(thread);
+            }
+            catch (IOException | GeneralSecurityException ex) {
+                System.err.println("Error when sending GET_CHUNK message: " + ex.getMessage());
+            }
+        }
     }
 
     @Override

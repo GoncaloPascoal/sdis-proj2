@@ -73,6 +73,16 @@ public class HandleReceivedMessageThread extends Thread {
                         if (message != null) handleDeleteMessage(message);
                         break;
                     }
+                    case "GET_CHUNK": {
+                        GetChunkMessage message = GetChunkMessage.parse(header);
+                        if (message != null) handleGetChunkMessage(message);
+                        break;
+                    }
+                    case "CHUNK": {
+                        ChunkMessage message = ChunkMessage.parse(header, body);
+                        if (message != null) handleChunkMessage(message);
+                        break;
+                    }
                     default:
                         break;
                 }
@@ -200,5 +210,13 @@ public class HandleReceivedMessageThread extends Thread {
             }
             folder.delete();
         }
+    }
+
+    private void handleGetChunkMessage(GetChunkMessage message) {
+        // TODO
+    }
+
+    private void handleChunkMessage(ChunkMessage message) {
+        // TODO
     }
 }

@@ -6,9 +6,11 @@ import chord.ChordTask;
 import jsse.ClientThread;
 import messages.*;
 import utils.Utils;
+import workers.RestoreChunkThread;
 import workers.StoreChunkThread;
 
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.security.GeneralSecurityException;
 import java.util.List;
@@ -213,10 +215,51 @@ public class HandleReceivedMessageThread extends Thread {
     }
 
     private void handleGetChunkMessage(GetChunkMessage message) {
-        // TODO
+        ChunkIdentifier identifier = new ChunkIdentifier(message.fileId, message.chunkNumber);
+
+        if (Peer.state.storedChunksMap.containsKey(identifier)) {
+            try {
+                String path = "peer" + Peer.id + File.separator + message.fileId + File.separator + message.chunkNumber;
+                File chunkFile = new File(path);
+
+                byte[] chunkData = new byte[Peer.CHUNK_MAX_SIZE];
+                int chunkSize = 0;
+
+                boolean readSuccessfully = true;
+                if (chunkFile.length() > 0) {
+                    FileInputStream stream = new FileInputStream(chunkFile);
+
+                    if ((chunkSize = stream.read(chunkData)) <= 0) {
+                        System.err.println("Error when reading from chunk file " + message.chunkNumber + " of file " +
+                                message.fileId);
+                        stream.close();
+                        readSuccessfully = false;
+                    }
+                }
+
+                if (readSuccessfully) {
+                    byte[] body = new byte[chunkSize];
+                    System.arraycopy(chunkData, 0, body, 0, chunkSize);
+
+                    ChunkMessage chunkMessage = new ChunkMessage(Peer.version, Peer.id, message.fileId, message.chunkNumber,
+                            body);
+                    ClientThread thread = new ClientThread(message.initiatorAddress, chunkMessage);
+                    Peer.executor.execute(thread);
+
+                    return;
+                }
+            }
+            catch (IOException | GeneralSecurityException ex) {
+                System.err.println("Error when attempting to send CHUNK message: " + ex.getMessage());
+            }
+        }
+
+        // Peer hasn't stored the chunk or failed to send the CHUNK message, forward request to successor
+        message.forwardToSuccessor();
     }
 
     private void handleChunkMessage(ChunkMessage message) {
-        // TODO
+        RestoreChunkThread thread = new RestoreChunkThread(message);
+        Peer.executor.execute(thread);
     }
 }

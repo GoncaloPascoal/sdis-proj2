@@ -13,7 +13,7 @@ public class PeerState implements Serializable {
     public Long maxDiskSpace = null;
 
     public long getSpaceOccupied() {
-        return 0; //storedChunksMap.values().stream().mapToInt(chunk -> chunk.size).sum();
+        return storedChunksMap.values().stream().mapToInt((chunk -> chunk.size)).sum();
     }
 
     // For each file ID + chunk number, this hash map stores a set with the addresses and ports of all peers who have

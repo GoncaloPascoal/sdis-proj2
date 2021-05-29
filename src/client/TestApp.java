@@ -15,7 +15,6 @@ import java.util.Set;
 
 public class TestApp {
     public static void printState(PeerState state) {
-        /*
         if (state.maxDiskSpace != null) {
             double maxDiskSpaceKB = (double) state.maxDiskSpace / 1000.0;
             System.out.println("Maximum disk space: " + maxDiskSpaceKB + " KBytes");
@@ -23,7 +22,6 @@ public class TestApp {
 
         double spaceOccupiedKB = (double) state.getSpaceOccupied() / 1000.0;
         System.out.println("Space occupied: " + spaceOccupiedKB + " KBytes");
-        */
 
         System.out.println("Files whose backup this peer initiated:");
 

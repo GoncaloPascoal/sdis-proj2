@@ -181,6 +181,7 @@ public class Peer implements ClientInterface {
         }
         catch (RemoteException ex) {
             System.err.println("Exception occurred while setting up RMI: " + ex.getMessage());
+            return;
         }
 
         // Keystore Setup

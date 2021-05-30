@@ -85,6 +85,11 @@ public class HandleReceivedMessageThread extends Thread {
                         if (message != null) handleChunkMessage(message);
                         break;
                     }
+                    case "REMOVED": {
+                        RemovedMessage message = RemovedMessage.parse(header);
+                        if (message != null) handleRemovedMessage(message);
+                        break;
+                    }
                     default:
                         break;
                 }
@@ -261,5 +266,10 @@ public class HandleReceivedMessageThread extends Thread {
     private void handleChunkMessage(ChunkMessage message) {
         RestoreChunkThread thread = new RestoreChunkThread(message);
         Peer.executor.execute(thread);
+    }
+
+    private void handleRemovedMessage(RemovedMessage message) {
+        ChunkIdentifier identifier = new ChunkIdentifier(message.fileId, message.chunkNumber);
+        Peer.state.chunkReplicationDegreeMap.get(identifier).remove(message.senderAddress);
     }
 }

@@ -28,8 +28,7 @@ public class RestoreChunkThread extends Thread {
         Future<Integer> future = channel.write(buffer, offset);
 
         try {
-            Integer bytesWritten = future.get();
-            System.out.println("Wrote " + bytesWritten + " bytes at position " + offset);
+            future.get();
             Peer.chunksToRestoreMap.get(message.fileId).remove(message.chunkNumber);
 
             if (Peer.chunksToRestoreMap.get(message.fileId).isEmpty()) {

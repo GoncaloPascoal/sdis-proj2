@@ -14,7 +14,7 @@ import java.io.IOException;
 import java.security.GeneralSecurityException;
 
 public class StoreChunkThread extends Thread {
-    private static final Object lock = new Object();
+    public static final Object lock = new Object();
 
     private final PutChunkMessage message;
 
@@ -24,6 +24,7 @@ public class StoreChunkThread extends Thread {
 
     @Override
     public void run() {
+        ChunkIdentifier identifier = new ChunkIdentifier(message.fileId, message.chunkNumber);
         boolean stored = false;
 
         // Attempt to store chunk
@@ -31,14 +32,12 @@ public class StoreChunkThread extends Thread {
             if (Peer.state.maxDiskSpace == null || Peer.state.getSpaceOccupied() + message.body.length <= Peer.state.maxDiskSpace) {
                 // Have enough space to store this chunk
                 stored = true;
+                Peer.state.storedChunksMap.putIfAbsent(identifier,
+                        new ChunkInformation(message.body.length, message.replicationDegree));
             }
         }
 
         if (stored) {
-            ChunkIdentifier identifier = new ChunkIdentifier(message.fileId, message.chunkNumber);
-            Peer.state.storedChunksMap.putIfAbsent(identifier,
-                    new ChunkInformation(message.body.length, message.replicationDegree));
-
             // Store chunk in file system
             String path = "peer" + Peer.id + File.separator + message.fileId + File.separator + message.chunkNumber;
             File chunkFile = new File(path);
@@ -55,6 +54,9 @@ public class StoreChunkThread extends Thread {
             }
             catch (IOException ex) {
                 System.err.println("IO exception when storing chunk: " + ex.getMessage());
+                synchronized (lock) {
+                    Peer.state.storedChunksMap.remove(identifier);
+                }
                 message.forwardToSuccessor(false);
                 return;
             }

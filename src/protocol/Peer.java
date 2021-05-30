@@ -15,12 +15,10 @@ import java.rmi.registry.Registry;
 import java.rmi.server.UnicastRemoteObject;
 import java.security.GeneralSecurityException;
 import java.security.NoSuchAlgorithmException;
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.LinkedHashSet;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
+import java.util.stream.Collectors;
 
 import chord.ChordNode;
 import client.ClientInterface;
@@ -30,6 +28,8 @@ import messages.DeleteMessage;
 import messages.GetChunkMessage;
 import utils.Utils;
 import workers.ReadChunkThread;
+import workers.RemoveChunkThread;
+import workers.StoreChunkThread;
 
 public class Peer implements ClientInterface {
     public static final int CHUNK_MAX_SIZE = 64000;
@@ -205,7 +205,43 @@ public class Peer implements ClientInterface {
 
     @Override
     public void reclaim(long diskSpace) throws RemoteException {
+        if (diskSpace < 0) return;
 
+        // TODO: try to move as much code out of the synchronized block as possible to improve concurrency
+        synchronized (StoreChunkThread.lock) {
+            state.maxDiskSpace = diskSpace * 1000; // diskSpace is specified in KBytes
+            long spaceOccupied = state.getSpaceOccupied();
+
+            if (spaceOccupied > state.maxDiskSpace) {
+                long spaceToFree = spaceOccupied - state.maxDiskSpace, spaceFreed = 0;
+
+                Set<Map.Entry<ChunkIdentifier, ChunkInformation>> entrySet = state.storedChunksMap.entrySet();
+                List<Map.Entry<ChunkIdentifier, ChunkInformation>> sortedEntries = entrySet.stream()
+                        .sorted(Comparator.comparingInt(e -> e.getValue().size))
+                        .collect(Collectors.toList());
+
+                Collections.reverse(sortedEntries); // Reverse sorting so that the largest chunks are first
+
+                for (int i = sortedEntries.size() - 1; i >= 0; --i) {
+                    Map.Entry<ChunkIdentifier, ChunkInformation> entry = sortedEntries.get(i);
+                    ChunkIdentifier identifier = entry.getKey();
+                    InetSocketAddress initiatorAddress = entry.getValue().initiatorAddress;
+
+                    System.out.println("Deleting chunk " + identifier.fileId + " | " + identifier.chunkNumber);
+
+                    spaceFreed += entry.getValue().size;
+                    state.storedChunksMap.remove(identifier);
+
+                    // Create thread to free disk space and send the REMOVED message
+                    RemoveChunkThread thread = new RemoveChunkThread(identifier, initiatorAddress);
+                    executor.execute(thread);
+
+                    if (spaceFreed >= spaceToFree) {
+                        break;
+                    }
+                }
+            }
+        }
     }
 
     @Override

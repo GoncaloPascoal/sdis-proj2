@@ -35,7 +35,7 @@ public class RemoveChunkThread extends Thread {
             key = ChordNode.generateKey((identifier.fileId + "_" + identifier.chunkNumber).getBytes());
         }
         catch (NoSuchAlgorithmException ex) {
-            System.out.println(ex.getMessage());
+            System.err.println(ex.getMessage());
             return;
         }
 
@@ -55,10 +55,10 @@ public class RemoveChunkThread extends Thread {
                 if ((chunkSize = stream.read(chunkData)) <= 0) {
                     System.err.println("Error when reading from chunk file " + identifier.chunkNumber + " of file " +
                             identifier.fileId);
-                    stream.close();
                     readSuccessfully = false;
                 }
 
+                stream.close();
                 if (readSuccessfully) {
                     byte[] body = new byte[chunkSize];
                     System.arraycopy(chunkData, 0, body, 0, chunkSize);
@@ -83,7 +83,6 @@ public class RemoveChunkThread extends Thread {
 
                     ClientThread thread = new ClientThread(chordNode.getSuccessorInfo().address, findSuccessorMessage);
                     Peer.executor.execute(thread);
-                    return;
                 }
             }
             catch (IOException | GeneralSecurityException ex) {

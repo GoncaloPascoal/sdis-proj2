@@ -223,8 +223,7 @@ public class Peer implements ClientInterface {
                         .sorted(Comparator.comparingInt(e -> e.getValue().size))
                         .collect(Collectors.toList());
 
-                Collections.reverse(sortedEntries); // Reverse sorting so that the largest chunks are first
-
+                // Iterate in reversed order so that the largest chunks are deleted first
                 for (int i = sortedEntries.size() - 1; i >= 0; --i) {
                     Map.Entry<ChunkIdentifier, ChunkInformation> entry = sortedEntries.get(i);
                     ChunkIdentifier identifier = entry.getKey();
@@ -235,7 +234,7 @@ public class Peer implements ClientInterface {
                     spaceFreed += entry.getValue().size;
                     state.storedChunksMap.remove(identifier);
 
-                    // Create thread to free disk space and send the REMOVED message
+                    // Create thread to initiate PUT_CHUNK protocol, free disk space and send the REMOVED message
                     RemoveChunkThread thread = new RemoveChunkThread(identifier, initiatorAddress);
                     executor.execute(thread);
 

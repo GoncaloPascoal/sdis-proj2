@@ -131,6 +131,9 @@ public class Peer implements ClientInterface {
         path.toFile().getParentFile().mkdirs();
 
         chunksToRestoreMap.put(information.fileId, ConcurrentHashMap.newKeySet());
+        for (int chunkNumber = 0; chunkNumber < information.numChunks; ++chunkNumber) {
+            chunksToRestoreMap.get(information.fileId).add(chunkNumber);
+        }
 
         try {
             AsynchronousFileChannel channel = AsynchronousFileChannel.open(path, StandardOpenOption.CREATE, StandardOpenOption.WRITE);

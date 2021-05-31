@@ -33,7 +33,7 @@ public class StoreChunkThread extends Thread {
                 // Have enough space to store this chunk
                 stored = true;
                 Peer.state.storedChunksMap.putIfAbsent(identifier,
-                        new ChunkInformation(message.body.length, message.replicationDegree));
+                        new ChunkInformation(message.body.length, message.replicationDegree, message.initiatorAddress));
             }
         }
 

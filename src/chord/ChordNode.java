@@ -104,7 +104,7 @@ public class ChordNode implements Serializable {
 
         // Schedule StabilizationThread to execute periodically
         StabilizationThread stabilizationThread = new StabilizationThread();
-        Peer.executor.scheduleAtFixedRate(stabilizationThread, 0, 3, TimeUnit.SECONDS);
+        Peer.executor.scheduleAtFixedRate(stabilizationThread, 0, 2, TimeUnit.SECONDS);
     }
 
     public void initializeFingerTable() {

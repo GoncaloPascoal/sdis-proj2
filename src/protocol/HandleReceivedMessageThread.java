@@ -33,7 +33,6 @@ public class HandleReceivedMessageThread extends Thread {
 
             String[] headerComponents = header.split(" ");
             if (headerComponents.length >= 2) {
-                //System.out.println("Received " + headerComponents[1] + " message");
                 switch (headerComponents[1]) {
                     case "FIND_SUCCESSOR": {
                         FindSuccessorMessage message = FindSuccessorMessage.parse(header, body);

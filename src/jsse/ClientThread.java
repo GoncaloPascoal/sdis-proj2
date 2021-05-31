@@ -61,7 +61,6 @@ public class ClientThread extends SSLThread {
                     while (netData.hasRemaining()) {
                         channel.write(netData);
                     }
-                    //System.out.println("Message sent");
                     break;
                 case BUFFER_OVERFLOW:
                     netData = increaseBufferCapacity(netData, engine.getSession().getPacketBufferSize());
@@ -74,5 +73,7 @@ public class ClientThread extends SSLThread {
                     break;
             }
         }
+
+        channel.shutdownOutput();
     }
 }

@@ -53,10 +53,11 @@ public class ServerThread extends SSLThread {
     }
 
     private byte[] receiveMessage(SocketChannel channel, SSLEngine engine) throws IOException {
+        ByteBuffer messageBuffer = ByteBuffer.allocate(Message.MAX_SIZE);
         ByteBuffer peerAppData = ByteBuffer.allocate(Message.MAX_SIZE),
                 peerNetData = ByteBuffer.allocate(Message.MAX_SIZE);
 
-        while (channel.read(peerNetData) > 0) {
+        while (channel.read(peerNetData) >= 0) {
             peerNetData.flip();
 
             while (peerNetData.hasRemaining()) {
@@ -65,6 +66,10 @@ public class ServerThread extends SSLThread {
 
                 switch (result.getStatus()) {
                     case OK:
+                        peerAppData.flip();
+                        messageBuffer.put(peerAppData);
+                        peerAppData.clear();
+                        break;
                     case BUFFER_UNDERFLOW:
                         break;
                     case BUFFER_OVERFLOW:
@@ -75,11 +80,13 @@ public class ServerThread extends SSLThread {
                         break;
                 }
             }
+
+            peerNetData.clear();
         }
 
-        int bytesRead = peerAppData.position();
+        int bytesRead = messageBuffer.position();
         byte[] messageBytes = new byte[bytesRead];
-        System.arraycopy(peerAppData.array(), 0, messageBytes, 0, bytesRead);
+        System.arraycopy(messageBuffer.array(), 0, messageBytes, 0, bytesRead);
 
         return messageBytes;
     }

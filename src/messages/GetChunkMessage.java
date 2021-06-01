@@ -33,7 +33,7 @@ public class GetChunkMessage extends Message {
     }
 
     public static GetChunkMessage parse(String header) {
-        // <Version> GETCHUNK <SenderId> <FileId> <ChunkNo> <InitiatorHostname> <InitiatorPort> <CRLF><CRLF><Body>
+        // <Version> GET_CHUNK <SenderId> <FileId> <ChunkNo> <InitiatorHostname> <InitiatorPort> <CRLF><CRLF><Body>
         String[] headerComponents = header.split(" ");
 
         if (headerComponents.length != 7 || !headerComponents[1].equals(name)) {

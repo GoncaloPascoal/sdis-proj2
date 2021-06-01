@@ -36,7 +36,7 @@ public class PutChunkMessage extends Message {
     }
 
     public static PutChunkMessage parse(String header, byte[] body) {
-        // <Version> PUTCHUNK <SenderId> <FileId> <ChunkNo> <ReplicationDeg> <InitiatorHostname> <InitiatorPort> <CRLF><CRLF><Body>
+        // <Version> PUT_CHUNK <SenderId> <FileId> <ChunkNo> <ReplicationDeg> <InitiatorHostname> <InitiatorPort> <CRLF><CRLF><Body>
         String[] headerComponents = header.split(" ");
 
         if (headerComponents.length != 8 || !headerComponents[1].equals(name)) {

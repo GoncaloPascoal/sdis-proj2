@@ -3,6 +3,7 @@ package protocol;
 import chord.ChordNode;
 import chord.ChordNodeInfo;
 import chord.ChordTask;
+import chord.FindSuccessorsThread;
 import jsse.ClientThread;
 import messages.*;
 import utils.Utils;
@@ -15,6 +16,7 @@ import java.io.IOException;
 import java.security.GeneralSecurityException;
 import java.util.List;
 import java.util.Queue;
+import java.util.concurrent.ConcurrentLinkedQueue;
 
 public class HandleReceivedMessageThread extends Thread {
     private final byte[] messageBytes;
@@ -59,6 +61,16 @@ public class HandleReceivedMessageThread extends Thread {
                         if (message != null) handleNotifyMessage(message);
                         break;
                     }
+                    case "GET_SUCCESSOR": {
+                        GetSuccessorMessage message = GetSuccessorMessage.parse(header);
+                        if (message != null) handleGetSuccessorMessage(message);
+                        break;
+                    }
+                    case "NODE_SUCCESSOR": {
+                        NodeSuccessorMessage message = NodeSuccessorMessage.parse(header);
+                        if (message != null) handleNodeSuccessorMessage(message);
+                        break;
+                    }
                     case "PUT_CHUNK": {
                         PutChunkMessage message = PutChunkMessage.parse(header, body);
                         if (message != null) handlePutChunkMessage(message);
@@ -87,6 +99,11 @@ public class HandleReceivedMessageThread extends Thread {
                     case "REMOVED": {
                         RemovedMessage message = RemovedMessage.parse(header);
                         if (message != null) handleRemovedMessage(message);
+                        break;
+                    }
+                    case "START_PUT_CHUNK": {
+                        StartPutChunkMessage message = StartPutChunkMessage.parse(header);
+                        if (message != null) handleStartPutChunkMessage(message);
                         break;
                     }
                     default:
@@ -176,6 +193,52 @@ public class HandleReceivedMessageThread extends Thread {
         }
     }
 
+    private void handleGetSuccessorMessage(GetSuccessorMessage message) {
+        NodeSuccessorMessage nodeSuccessorMessage = new NodeSuccessorMessage(Peer.version, Peer.id, Peer.state.chordNode.getSuccessorInfo());
+
+        try {
+            ClientThread thread = new ClientThread(message.initiatorAddress, nodeSuccessorMessage);
+            Peer.executor.execute(thread);
+        }
+        catch (IOException | GeneralSecurityException ex) {
+            System.err.println("Exception occurred when handling GET_SUCCESSOR message: " + ex.getMessage());
+        }
+    }
+
+    private void handleNodeSuccessorMessage(NodeSuccessorMessage message) {
+        ChordNode chordNode = Peer.state.chordNode;
+
+        if (message.successorInfo.equals(chordNode.selfInfo)) {
+            // Traveled around the chord ring, stop the find successors procedure
+            FindSuccessorsThread.procedureFinished = true;
+            return;
+        }
+
+        if (message.successorInfo.equals(chordNode.getSuccessorInfo())) {
+            // Finger table entries might not have been updated yet, stop procedure and try again later
+            FindSuccessorsThread.procedureFinished = true;
+            return;
+        }
+
+        chordNode.successorDeque.add(message.successorInfo);
+        System.out.println("Deque: " + chordNode.successorDeque);
+
+        if (chordNode.successorDeque.size() < ChordNode.numSuccessors) {
+            // Deque is still not full, continue asking for successors
+            GetSuccessorMessage getSuccessorMessage = new GetSuccessorMessage(Peer.version, Peer.id, Peer.address);
+            try {
+                ClientThread thread = new ClientThread(message.successorInfo.address, getSuccessorMessage);
+                Peer.executor.execute(thread);
+            }
+            catch (IOException | GeneralSecurityException ex) {
+                System.err.println("Exception occurred when handling NODE_SUCCESSOR message: " + ex.getMessage());
+            }
+        }
+        else {
+            FindSuccessorsThread.procedureFinished = true;
+        }
+    }
+
     private void handlePutChunkMessage(PutChunkMessage message) {
         // The chunk cannot be stored by the initiator peer
         if (!message.initiatorAddress.equals(Peer.address)) {
@@ -210,7 +273,7 @@ public class HandleReceivedMessageThread extends Thread {
                         chunkFile.delete();
                     }
                     catch (NumberFormatException ex) {
-                        System.out.println("Chunk file has invalid name: " + ex.getMessage());
+                        System.err.println("Chunk file has invalid name: " + ex.getMessage());
                     }
                 }
             }
@@ -236,9 +299,10 @@ public class HandleReceivedMessageThread extends Thread {
                     if ((chunkSize = stream.read(chunkData)) <= 0) {
                         System.err.println("Error when reading from chunk file " + message.chunkNumber + " of file " +
                                 message.fileId);
-                        stream.close();
                         readSuccessfully = false;
                     }
+
+                    stream.close();
                 }
 
                 if (readSuccessfully) {
@@ -270,5 +334,65 @@ public class HandleReceivedMessageThread extends Thread {
     private void handleRemovedMessage(RemovedMessage message) {
         ChunkIdentifier identifier = new ChunkIdentifier(message.fileId, message.chunkNumber);
         Peer.state.chunkReplicationDegreeMap.get(identifier).remove(message.senderAddress);
+    }
+
+    private void handleStartPutChunkMessage(StartPutChunkMessage message) {
+        ChordNode chordNode = Peer.state.chordNode;
+        ChunkIdentifier identifier = new ChunkIdentifier(message.fileId, message.chunkNumber);
+
+        try {
+            if (Peer.state.storedChunksMap.containsKey(identifier)) {
+                String path = "peer" + Peer.id + File.separator + message.fileId + File.separator + message.chunkNumber;
+                File chunkFile = new File(path);
+
+                byte[] chunkData = new byte[Peer.CHUNK_MAX_SIZE];
+                int chunkSize = 0;
+
+                boolean readSuccessfully = true;
+                if (chunkFile.length() > 0) {
+                    FileInputStream stream = new FileInputStream(chunkFile);
+
+                    if ((chunkSize = stream.read(chunkData)) <= 0) {
+                        System.err.println("Error when reading from chunk file " + message.chunkNumber + " of file " +
+                                message.fileId);
+                        stream.close();
+                        readSuccessfully = false;
+                    }
+                }
+
+                if (readSuccessfully) {
+                    byte[] body = new byte[chunkSize];
+                    System.arraycopy(chunkData, 0, body, 0, chunkSize);
+
+                    PutChunkMessage putChunkMessage = new PutChunkMessage(Peer.version, Peer.id, message.fileId,
+                            message.chunkNumber, message.replicationDegree, message.initiatorAddress, body);
+
+                    long key = ChordNode.generateKey((message.fileId + "_" + message.chunkNumber).getBytes());
+
+                    FindSuccessorMessage findSuccessorMessage = new FindSuccessorMessage(Peer.version, Peer.id, key, Peer.address);
+                    ChordNodeInfo closestPrecedingNode = chordNode.getClosestPrecedingNode(key);
+
+                    chordNode.tasksMap.putIfAbsent(key, new ConcurrentLinkedQueue<>());
+                    chordNode.tasksMap.get(key).add(new ChordTask() {
+                        @Override
+                        public void performTask(ChordNodeInfo successorInfo) {
+                            try {
+                                ClientThread putChunkThread = new ClientThread(successorInfo.address, putChunkMessage);
+                                Peer.executor.execute(putChunkThread);
+                            }
+                            catch (Exception ex) {
+                                System.err.println("Exception when attempting to sent PUT_CHUNK message: " + ex.getMessage());
+                            }
+                        }
+                    });
+
+                    ClientThread thread = new ClientThread(closestPrecedingNode.address, findSuccessorMessage);
+                    Peer.executor.execute(thread);
+                }
+            }
+        }
+        catch (Exception ex) {
+            System.err.println("Error when handling START_PUT_CHUNK message: " + ex.getMessage());
+        }
     }
 }

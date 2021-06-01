@@ -41,7 +41,7 @@ public class Peer implements ClientInterface {
 
     public static String keyStorePath, trustStorePath, password;
 
-    public static final int MAX_THREADS = 50;
+    public static final int MAX_THREADS = 25;
     public static ScheduledThreadPoolExecutor executor = new ScheduledThreadPoolExecutor(MAX_THREADS);
 
     public static PeerState state = new PeerState();
@@ -79,6 +79,8 @@ public class Peer implements ClientInterface {
 
             String fileId = Utils.calculateFileId(file);
             int numChunks = (int) (file.length() / CHUNK_MAX_SIZE + 1);
+
+            state.desiredReplicationDegreeMap.put(fileId, replicationDegree);
 
             chunksToReadMap.put(fileId, new HashSet<>());
 
@@ -323,7 +325,6 @@ public class Peer implements ClientInterface {
             // Creating a new Chord network
             state.chordNode.joinNetwork();
 
-            System.out.println("Successfully joined the network with id = " + state.chordNode.selfInfo.id + ".");
             System.out.println("Your successor is " + state.chordNode.getSuccessorInfo() + ".");
         }
     }

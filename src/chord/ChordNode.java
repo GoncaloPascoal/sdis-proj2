@@ -2,9 +2,9 @@ package chord;
 
 import jsse.ClientThread;
 import messages.FindSuccessorMessage;
-import messages.GetPredecessorMessage;
-import messages.NotifyMessage;
+import protocol.CheckReplicationDegreeThread;
 import protocol.Peer;
+import protocol.VerifyChunksThread;
 
 import java.io.IOException;
 import java.io.Serializable;
@@ -14,6 +14,7 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReferenceArray;
@@ -24,6 +25,11 @@ public class ChordNode implements Serializable {
     // With an m-bit key, there can be 2^m nodes, and each has m entries in its finger table
     public static final int keyBits = 10;
     public static final long maxNodes = (long) Math.pow(2, keyBits);
+
+    // Fault tolerance: in addition to its successor, the peer keeps the addresses of n successors, so that it can
+    // continue operating if its successor fails
+    public static final int numSuccessors = 2;
+    public final ConcurrentLinkedDeque<ChordNodeInfo> successorDeque = new ConcurrentLinkedDeque<>();
 
     public ChordNodeInfo selfInfo, predecessorInfo = null;
     // AtomicReferenceArray is used to ensure thread safety
@@ -37,6 +43,7 @@ public class ChordNode implements Serializable {
             long key = generateKey(input.getBytes());
 
             selfInfo = new ChordNodeInfo(key, address);
+            System.out.println("Joining the network with id = " + selfInfo.id + ".");
         }
         catch (NoSuchAlgorithmException ex) {
             System.out.println("Algorithm does not exist: " + ex.getMessage());
@@ -100,11 +107,23 @@ public class ChordNode implements Serializable {
     private void startPeriodicTasks() {
         // Schedule FixFingersThread to execute periodically
         FixFingersThread fixFingersThread = new FixFingersThread();
-        Peer.executor.scheduleAtFixedRate(fixFingersThread, 0, 250, TimeUnit.MILLISECONDS);
+        Peer.executor.scheduleWithFixedDelay(fixFingersThread, 0, 300, TimeUnit.MILLISECONDS);
 
         // Schedule StabilizationThread to execute periodically
         StabilizationThread stabilizationThread = new StabilizationThread();
-        Peer.executor.scheduleAtFixedRate(stabilizationThread, 0, 2, TimeUnit.SECONDS);
+        Peer.executor.scheduleWithFixedDelay(stabilizationThread, 0, 2, TimeUnit.SECONDS);
+
+        // Schedule FindSuccessorsThread to execute periodically
+        FindSuccessorsThread findSuccessorsThread = new FindSuccessorsThread();
+        Peer.executor.scheduleWithFixedDelay(findSuccessorsThread, 0, 10, TimeUnit.SECONDS);
+
+        // Tasks related to the backup service
+        VerifyChunksThread verifyChunksThread = new VerifyChunksThread();
+        Peer.executor.scheduleWithFixedDelay(verifyChunksThread, 0, 6, TimeUnit.SECONDS);
+
+        // Tasks related to the backup service
+        CheckReplicationDegreeThread checkReplicationDegreeThread = new CheckReplicationDegreeThread();
+        Peer.executor.scheduleWithFixedDelay(checkReplicationDegreeThread, 0, 6, TimeUnit.SECONDS);
     }
 
     public void initializeFingerTable() {

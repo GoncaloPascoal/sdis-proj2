@@ -23,6 +23,9 @@ public class PeerState implements Serializable {
     // Hash map containing information about the files that this peer has initiated the backup of
     public ConcurrentHashMap<String, FileInformation> backupFilesMap = new ConcurrentHashMap<>();
 
+    // Maps file IDs to the desired replication degree of their chunks
+    public ConcurrentHashMap<String, Integer> desiredReplicationDegreeMap = new ConcurrentHashMap<>();
+
     // Hash map containing information about chunks this peer is backing up
     public ConcurrentHashMap<ChunkIdentifier, ChunkInformation> storedChunksMap = new ConcurrentHashMap<>();
 }

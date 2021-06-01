@@ -80,6 +80,8 @@ public class Peer implements ClientInterface {
             String fileId = Utils.calculateFileId(file);
             int numChunks = (int) (file.length() / CHUNK_MAX_SIZE + 1);
 
+            state.desiredReplicationDegreeMap.put(fileId, replicationDegree);
+
             chunksToReadMap.put(fileId, new HashSet<>());
 
             for (int chunkNumber = 0; chunkNumber < numChunks; ++chunkNumber) {
@@ -323,7 +325,6 @@ public class Peer implements ClientInterface {
             // Creating a new Chord network
             state.chordNode.joinNetwork();
 
-            System.out.println("Successfully joined the network with id = " + state.chordNode.selfInfo.id + ".");
             System.out.println("Your successor is " + state.chordNode.getSuccessorInfo() + ".");
         }
     }

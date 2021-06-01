@@ -49,6 +49,11 @@ public class ClientThread extends SSLThread {
 
             ChordNode chordNode = Peer.state.chordNode;
 
+            // We consider that the peer that has died no longer stores any chunks whose backup was initiated by this peer
+            for (Map.Entry<ChunkIdentifier, Set<InetSocketAddress>> entry : Peer.state.chunkReplicationDegreeMap.entrySet()) {
+                entry.getValue().remove(destinationAddress);
+            }
+
             if (destinationAddress.equals(chordNode.predecessorInfo.address)) {
                 // Predecessor has failed, set it to null
                 chordNode.predecessorInfo = null;
@@ -74,6 +79,24 @@ public class ClientThread extends SSLThread {
                 }
             }
 
+            if (message instanceof GetChunkMessage) {
+                // If a GetChunkMessage failed, attempt to contact next peer that has stored the requested chunk
+                GetChunkMessage getChunkMessage = (GetChunkMessage) message;
+                ChunkIdentifier identifier = new ChunkIdentifier(getChunkMessage.fileId, getChunkMessage.chunkNumber);
+                Peer.state.chunkReplicationDegreeMap.get(identifier);
+
+                InetSocketAddress previous = null;
+                for (InetSocketAddress address : Peer.state.chunkReplicationDegreeMap.get(identifier)) {
+                    if (destinationAddress.equals(previous)) {
+                        destinationAddress = address;
+                        // If the communication failed, we consider that the peer is dead and no longer storing the chunk
+                        Peer.state.chunkReplicationDegreeMap.get(identifier).remove(previous);
+                        Peer.executor.execute(this);
+                        return;
+                    }
+                    previous = address;
+                }
+            }
         }
     }
 

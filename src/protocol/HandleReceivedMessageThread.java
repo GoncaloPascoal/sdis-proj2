@@ -16,6 +16,7 @@ import java.io.IOException;
 import java.security.GeneralSecurityException;
 import java.util.List;
 import java.util.Queue;
+import java.util.concurrent.ConcurrentLinkedQueue;
 
 public class HandleReceivedMessageThread extends Thread {
     private final byte[] messageBytes;
@@ -98,6 +99,11 @@ public class HandleReceivedMessageThread extends Thread {
                     case "REMOVED": {
                         RemovedMessage message = RemovedMessage.parse(header);
                         if (message != null) handleRemovedMessage(message);
+                        break;
+                    }
+                    case "START_PUT_CHUNK": {
+                        StartPutChunkMessage message = StartPutChunkMessage.parse(header);
+                        if (message != null) handleStartPutChunkMessage(message);
                         break;
                     }
                     default:
@@ -267,7 +273,7 @@ public class HandleReceivedMessageThread extends Thread {
                         chunkFile.delete();
                     }
                     catch (NumberFormatException ex) {
-                        System.out.println("Chunk file has invalid name: " + ex.getMessage());
+                        System.err.println("Chunk file has invalid name: " + ex.getMessage());
                     }
                 }
             }
@@ -293,9 +299,10 @@ public class HandleReceivedMessageThread extends Thread {
                     if ((chunkSize = stream.read(chunkData)) <= 0) {
                         System.err.println("Error when reading from chunk file " + message.chunkNumber + " of file " +
                                 message.fileId);
-                        stream.close();
                         readSuccessfully = false;
                     }
+
+                    stream.close();
                 }
 
                 if (readSuccessfully) {
@@ -327,5 +334,65 @@ public class HandleReceivedMessageThread extends Thread {
     private void handleRemovedMessage(RemovedMessage message) {
         ChunkIdentifier identifier = new ChunkIdentifier(message.fileId, message.chunkNumber);
         Peer.state.chunkReplicationDegreeMap.get(identifier).remove(message.senderAddress);
+    }
+
+    private void handleStartPutChunkMessage(StartPutChunkMessage message) {
+        ChordNode chordNode = Peer.state.chordNode;
+        ChunkIdentifier identifier = new ChunkIdentifier(message.fileId, message.chunkNumber);
+
+        try {
+            if (Peer.state.storedChunksMap.containsKey(identifier)) {
+                String path = "peer" + Peer.id + File.separator + message.fileId + File.separator + message.chunkNumber;
+                File chunkFile = new File(path);
+
+                byte[] chunkData = new byte[Peer.CHUNK_MAX_SIZE];
+                int chunkSize = 0;
+
+                boolean readSuccessfully = true;
+                if (chunkFile.length() > 0) {
+                    FileInputStream stream = new FileInputStream(chunkFile);
+
+                    if ((chunkSize = stream.read(chunkData)) <= 0) {
+                        System.err.println("Error when reading from chunk file " + message.chunkNumber + " of file " +
+                                message.fileId);
+                        stream.close();
+                        readSuccessfully = false;
+                    }
+                }
+
+                if (readSuccessfully) {
+                    byte[] body = new byte[chunkSize];
+                    System.arraycopy(chunkData, 0, body, 0, chunkSize);
+
+                    PutChunkMessage putChunkMessage = new PutChunkMessage(Peer.version, Peer.id, message.fileId,
+                            message.chunkNumber, message.replicationDegree, message.initiatorAddress, body);
+
+                    long key = ChordNode.generateKey((message.fileId + "_" + message.chunkNumber).getBytes());
+
+                    FindSuccessorMessage findSuccessorMessage = new FindSuccessorMessage(Peer.version, Peer.id, key, Peer.address);
+                    ChordNodeInfo closestPrecedingNode = chordNode.getClosestPrecedingNode(key);
+
+                    chordNode.tasksMap.putIfAbsent(key, new ConcurrentLinkedQueue<>());
+                    chordNode.tasksMap.get(key).add(new ChordTask() {
+                        @Override
+                        public void performTask(ChordNodeInfo successorInfo) {
+                            try {
+                                ClientThread putChunkThread = new ClientThread(successorInfo.address, putChunkMessage);
+                                Peer.executor.execute(putChunkThread);
+                            }
+                            catch (Exception ex) {
+                                System.err.println("Exception when attempting to sent PUT_CHUNK message: " + ex.getMessage());
+                            }
+                        }
+                    });
+
+                    ClientThread thread = new ClientThread(closestPrecedingNode.address, findSuccessorMessage);
+                    Peer.executor.execute(thread);
+                }
+            }
+        }
+        catch (Exception ex) {
+            System.err.println("Error when handling START_PUT_CHUNK message: " + ex.getMessage());
+        }
     }
 }

@@ -41,7 +41,7 @@ public class Peer implements ClientInterface {
 
     public static String keyStorePath, trustStorePath, password;
 
-    public static final int MAX_THREADS = 50;
+    public static final int MAX_THREADS = 25;
     public static ScheduledThreadPoolExecutor executor = new ScheduledThreadPoolExecutor(MAX_THREADS);
 
     public static PeerState state = new PeerState();

@@ -3,6 +3,7 @@ package protocol;
 import chord.ChordNode;
 import chord.ChordNodeInfo;
 import chord.ChordTask;
+import chord.FindSuccessorsThread;
 import jsse.ClientThread;
 import messages.*;
 import utils.Utils;
@@ -57,6 +58,16 @@ public class HandleReceivedMessageThread extends Thread {
                     case "NOTIFY": {
                         NotifyMessage message = NotifyMessage.parse(header, body);
                         if (message != null) handleNotifyMessage(message);
+                        break;
+                    }
+                    case "GET_SUCCESSOR": {
+                        GetSuccessorMessage message = GetSuccessorMessage.parse(header);
+                        if (message != null) handleGetSuccessorMessage(message);
+                        break;
+                    }
+                    case "NODE_SUCCESSOR": {
+                        NodeSuccessorMessage message = NodeSuccessorMessage.parse(header);
+                        if (message != null) handleNodeSuccessorMessage(message);
                         break;
                     }
                     case "PUT_CHUNK": {
@@ -173,6 +184,52 @@ public class HandleReceivedMessageThread extends Thread {
                 || ChordNode.isKeyBetween(message.nodeInfo.id, chordNode.predecessorInfo.id, chordNode.selfInfo.id)) {
             chordNode.predecessorInfo = message.nodeInfo;
             System.out.println("Your predecessor is " + chordNode.predecessorInfo);
+        }
+    }
+
+    private void handleGetSuccessorMessage(GetSuccessorMessage message) {
+        NodeSuccessorMessage nodeSuccessorMessage = new NodeSuccessorMessage(Peer.version, Peer.id, Peer.state.chordNode.getSuccessorInfo());
+
+        try {
+            ClientThread thread = new ClientThread(message.initiatorAddress, nodeSuccessorMessage);
+            Peer.executor.execute(thread);
+        }
+        catch (IOException | GeneralSecurityException ex) {
+            System.err.println("Exception occurred when handling GET_SUCCESSOR message: " + ex.getMessage());
+        }
+    }
+
+    private void handleNodeSuccessorMessage(NodeSuccessorMessage message) {
+        ChordNode chordNode = Peer.state.chordNode;
+
+        if (message.successorInfo.equals(chordNode.selfInfo)) {
+            // Traveled around the chord ring, stop the find successors procedure
+            FindSuccessorsThread.procedureFinished = true;
+            return;
+        }
+
+        if (message.successorInfo.equals(chordNode.getSuccessorInfo())) {
+            // Finger table entries might not have been updated yet, stop procedure and try again later
+            FindSuccessorsThread.procedureFinished = true;
+            return;
+        }
+
+        chordNode.successorDeque.add(message.successorInfo);
+        System.out.println("Deque: " + chordNode.successorDeque);
+
+        if (chordNode.successorDeque.size() < ChordNode.numSuccessors) {
+            // Deque is still not full, continue asking for successors
+            GetSuccessorMessage getSuccessorMessage = new GetSuccessorMessage(Peer.version, Peer.id, Peer.address);
+            try {
+                ClientThread thread = new ClientThread(message.successorInfo.address, getSuccessorMessage);
+                Peer.executor.execute(thread);
+            }
+            catch (IOException | GeneralSecurityException ex) {
+                System.err.println("Exception occurred when handling NODE_SUCCESSOR message: " + ex.getMessage());
+            }
+        }
+        else {
+            FindSuccessorsThread.procedureFinished = true;
         }
     }
 

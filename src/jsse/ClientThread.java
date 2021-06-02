@@ -17,6 +17,7 @@ import java.nio.ByteBuffer;
 import java.nio.channels.SocketChannel;
 import java.security.GeneralSecurityException;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 
 public class ClientThread extends SSLThread {
@@ -86,16 +87,12 @@ public class ClientThread extends SSLThread {
                 ChunkIdentifier identifier = new ChunkIdentifier(getChunkMessage.fileId, getChunkMessage.chunkNumber);
                 Peer.state.chunkReplicationDegreeMap.get(identifier);
 
-                InetSocketAddress previous = null;
-                for (InetSocketAddress address : Peer.state.chunkReplicationDegreeMap.get(identifier)) {
-                    if (destinationAddress.equals(previous)) {
-                        destinationAddress = address;
-                        // If the communication failed, we consider that the peer is dead and no longer storing the chunk
-                        Peer.state.chunkReplicationDegreeMap.get(identifier).remove(previous);
-                        Peer.executor.execute(this);
-                        return;
-                    }
-                    previous = address;
+                Optional<InetSocketAddress> optional = Peer.state.chunkReplicationDegreeMap.get(identifier).stream().findFirst();
+                if (optional.isPresent()) {
+                    destinationAddress = optional.get();
+                    System.out.println(destinationAddress);
+                    Peer.executor.execute(this);
+                    return;
                 }
             }
 

@@ -28,14 +28,14 @@ public class ChordNode implements Serializable {
 
     // Fault tolerance: in addition to its successor, the peer keeps the addresses of n successors, so that it can
     // continue operating if its successor fails
-    public static final int numSuccessors = 2;
-    public final ConcurrentLinkedDeque<ChordNodeInfo> successorDeque = new ConcurrentLinkedDeque<>();
+    public static final transient int numSuccessors = 2;
+    public final transient ConcurrentLinkedDeque<ChordNodeInfo> successorDeque = new ConcurrentLinkedDeque<>();
 
     public ChordNodeInfo selfInfo, predecessorInfo = null;
     // AtomicReferenceArray is used to ensure thread safety
     public AtomicReferenceArray<ChordNodeInfo> fingerTable = new AtomicReferenceArray<>(keyBits);
 
-    public final ConcurrentHashMap<Long, Queue<ChordTask>> tasksMap = new ConcurrentHashMap<>();
+    public final transient ConcurrentHashMap<Long, Queue<ChordTask>> tasksMap = new ConcurrentHashMap<>();
 
     public ChordNode(InetSocketAddress address) {
         try {

@@ -35,7 +35,8 @@ public class TestApp {
             for (Map.Entry<ChunkIdentifier, Set<InetSocketAddress>> chunkEntry : state.chunkReplicationDegreeMap.entrySet()) {
                 if (value.fileId.equals(chunkEntry.getKey().fileId)) {
                     System.out.println("\tChunk " + chunkEntry.getKey().chunkNumber);
-                    System.out.println("\t\tPerceived replication degree: " + chunkEntry.getValue().size());
+                    System.out.println("\t\tPerceived replication degree: " + chunkEntry.getValue().size() + " (" +
+                            chunkEntry.getValue() + ")");
                 }
             }
 

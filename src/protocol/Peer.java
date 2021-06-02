@@ -1,10 +1,13 @@
 package protocol;
 
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
+import java.io.ObjectInputStream;
 import java.net.InetSocketAddress;
 
 import java.nio.channels.AsynchronousFileChannel;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
@@ -18,6 +21,7 @@ import java.security.NoSuchAlgorithmException;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 import chord.ChordNode;
@@ -280,6 +284,41 @@ public class Peer implements ClientInterface {
             return;
         }
 
+        try {
+            // Attempt to load peer state from file (if it exists)
+            File stateFile = new File("peer" + id + File.separator + "state.ser");
+
+            if (stateFile.exists()) {
+                ObjectInputStream inputStream = new ObjectInputStream(new FileInputStream(stateFile));
+                state = (PeerState) inputStream.readObject();
+                inputStream.close();
+
+                // Clear the peer's storage system
+                File folder = new File("peer" + Peer.id);
+
+                if (folder.exists() && folder.isDirectory()) {
+                    Path path = folder.toPath();
+
+                    // Delete peer's file system recursively (except the restored
+                    Files.walk(path)
+                            .filter(p -> !p.startsWith("peer" + id + File.separator + "restored") || p.endsWith("state.ser"))
+                            .sorted(Comparator.reverseOrder())
+                            .map(Path::toFile)
+                            .forEach(File::delete);
+                }
+
+                state.storedChunksMap = new ConcurrentHashMap<>();
+            }
+        }
+        catch (Exception ex) {
+            System.err.println("Error when attempting to load peer state: " + ex.getMessage());
+            ex.printStackTrace();
+        }
+
+        if (state == null) {
+            state = new PeerState();
+        }
+
         // Keystore Setup
         keyStorePath = args[3];
         trustStorePath = args[4];
@@ -307,6 +346,11 @@ public class Peer implements ClientInterface {
         }
 
         state.chordNode = new ChordNode(address);
+
+        // Schedule SaveStateThread to run periodically
+        SaveStateThread storeStateThread = new SaveStateThread();
+        Runtime.getRuntime().addShutdownHook(storeStateThread);
+        executor.scheduleWithFixedDelay(storeStateThread, 0, 20, TimeUnit.SECONDS);
 
         if (args.length == 10) {
             // Joining an existing Chord network

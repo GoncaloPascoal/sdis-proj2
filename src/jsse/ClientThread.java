@@ -2,6 +2,7 @@ package jsse;
 
 import chord.ChordNode;
 import chord.ChordNodeInfo;
+import messages.FindSuccessorMessage;
 import messages.GetChunkMessage;
 import messages.Message;
 import protocol.ChunkIdentifier;
@@ -95,6 +96,23 @@ public class ClientThread extends SSLThread {
                         return;
                     }
                     previous = address;
+                }
+            }
+
+            if (message instanceof FindSuccessorMessage) {
+                // If a FindSuccessorMessage failed, attempt to contact the previous finger
+                boolean resend = false;
+
+                for (int i = 1; i < ChordNode.keyBits; ++i) {
+                    if (chordNode.fingerTable.get(i).address.equals(destinationAddress)) {
+                        resend = true;
+                        destinationAddress = chordNode.fingerTable.get(i - 1).address;
+                        break;
+                    }
+                }
+
+                if (resend) {
+                    Peer.executor.execute(this);
                 }
             }
         }

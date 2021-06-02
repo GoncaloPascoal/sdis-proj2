@@ -86,7 +86,6 @@ public class Peer implements ClientInterface {
 
             for (int chunkNumber = 0; chunkNumber < numChunks; ++chunkNumber) {
                 ChunkIdentifier identifier = new ChunkIdentifier(fileId, chunkNumber);
-                //state.backupChunks.add(identifier);
                 chunksToReadMap.get(fileId).add(chunkNumber);
                 state.chunkReplicationDegreeMap.put(identifier, Collections.synchronizedSet(new LinkedHashSet<>()));
             }
@@ -254,7 +253,7 @@ public class Peer implements ClientInterface {
     }
 
     public static void printUsage() {
-        System.out.println("Usage: Peer <protocol_version> <peer_id> <service_ap> <client_keys_path> <server_keys_path> <truststore_path> <password> <addr> <port> [chord_addr chord_port].");
+        System.out.println("Usage: Peer <protocol_version> <peer_id> <service_ap> <keystore_path> <truststore_path> <password> <addr> <port> [chord_addr chord_port].");
         System.out.println("When run without the last two arguments, a new Chord network is created.");
         System.out.println("Otherwise, the protocol.Peer will join the network specified by chord_addr:chord_port.");
     }

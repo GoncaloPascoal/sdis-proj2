@@ -29,11 +29,12 @@ public class StoreChunkThread extends Thread {
 
         // Attempt to store chunk
         synchronized (lock) {
-            if (Peer.state.maxDiskSpace == null || Peer.state.getSpaceOccupied() + message.body.length <= Peer.state.maxDiskSpace) {
-                // Have enough space to store this chunk
+            if ((Peer.state.maxDiskSpace == null || Peer.state.getSpaceOccupied() + message.body.length <= Peer.state.maxDiskSpace)
+                && !Peer.state.storedChunksMap.containsKey(identifier)) {
+                // Have enough space to store this chunk and the chunk isn't already stored
                 stored = true;
-                Peer.state.storedChunksMap.putIfAbsent(identifier,
-                        new ChunkInformation(message.body.length, message.replicationDegree, message.initiatorAddress));
+                Peer.state.storedChunksMap.put(identifier,
+                        new ChunkInformation(message.body.length, message.initiatorAddress));
             }
         }
 

@@ -10,9 +10,7 @@ public class SaveStateThread extends Thread {
         File stateFile = new File("peer" + Peer.id + File.separator + "state.ser");
 
         try {
-            if (!stateFile.getParentFile().mkdirs()) {
-                return;
-            }
+            stateFile.getParentFile().mkdirs();
 
             if (stateFile.exists() && !stateFile.delete()) {
                 return;

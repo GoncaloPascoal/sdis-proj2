@@ -53,7 +53,7 @@ public class TestApp {
 
             System.out.println("File " + key.fileId + " | Chunk " + key.chunkNumber);
             System.out.println("\tSize: " + sizeKB + " KBytes");
-            System.out.println("\tDesired replication degree: " + value.desiredReplicationDegree);
+            System.out.println("\tInitiator peer: " + value.initiatorAddress);
 
             System.out.println();
         }
